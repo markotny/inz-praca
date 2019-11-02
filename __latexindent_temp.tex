@@ -1,5 +1,3 @@
-% !TEX root = ./Dyplom.tex
-
 \chapter{Projekt aplikacji}
 \section{Założenia projektowe}
 	Całość aplikacji zaprojektowana zostanie ze wsparciem platformy Docker.
@@ -29,7 +27,7 @@
 			adresy serwerów zarejestrowane będą w odwróconym proxy.
 			Będzie to również główny punkt dostępu do aplikacji, który będzie kierował ruchem.
 			Dodatkowo, będzie obsługiwał szyfrowanie przesyłanych danych protokołem HTTPS\@.
-
+			
 		\end{enumerate}
 		
 \section{Koncepcja architektury aplikacji}
@@ -37,27 +35,12 @@
 		Jako protokół uwierzytelniania wybrano OpenID Connect.
 		Standard ten rozszerza OAuth2 (służący do autoryzacji) o warstwę identyfikacji użytkowników.
 		Jest obecnie jednym z najbezpieczniejszych standardów uwierzytelniania.
-		Zaimplementowany zostanie przy pomocy biblioteki \emph{IdentityServer4} na platformie \emph{ASP.Net Core 3.0}.
+		Zaimplementowany zostanie przy pomocy biblioteki IdentityServer4 na platformie ASP.Net Core 3.0.
 		Użytkownik po zalogowaniu otrzyma token JWT, który będzie zawierał cyfrową sygnaturę.
 		Dzięki temu jakakolwiek ingerencja w jego strukturę sprawi, iż nie przejdzie on walidacji.
 
-		% OBRAZEK PKCE FLOW
-
 	\subsection{API}
-		Projekt podzielony zostanie na trzy warstwy:
-		\begin{description}
-			\item[Api] warstwa obsługująca zapytania GraphQL
-			\item[Core] warstwa domenowa definiująca modele encji oraz interfejsy, z których korzysta warstwa Api
-			\item[Infrastructure] warstwa implementująca interfejsy oraz obsługująca dostęp do bazy danych
-		\end{description}
-		Podział ten znany jest jako ,,czysta architektura'' (ang.\ \emph{Clean architecture}).
-		
-
-		Na platformie \@.Net Core dostępne są dwie aktywnie rozwijane biblioteki implementujące GraphQL\@: \emph{GraphQL \@.NET} oraz \emph{Hot Chocolate}.
-		Mimo znacznie mniejszej popularności wybrana została biblioteka \emph{Hot Chocolate},
-		ponieważ prezentuje wiele możliwości automatyzacji generowania schematu GraphQL\@.
-
-
+		graphql
 	\subsection{SPA}
 		angular
 
