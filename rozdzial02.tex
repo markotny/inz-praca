@@ -51,7 +51,8 @@
 			\item[Infrastructure] warstwa implementująca interfejsy oraz obsługująca dostęp do bazy danych
 		\end{description}
 		Podział ten znany jest jako ,,czysta architektura'' (ang.\ \emph{Clean architecture}).
-		
+		Taki układ umożliwia podział projektu na warstwy, które mają zdefiniowane odpowiedzialności.
+		Dzięki zachowaniu zasady odwrócenia zależności możliwe jest testowanie każdej funkcjonalności z osobna.
 
 		Na platformie \@.Net Core dostępne są dwie aktywnie rozwijane biblioteki implementujące GraphQL\@: \emph{GraphQL \@.NET} oraz \emph{Hot Chocolate}.
 		Mimo znacznie mniejszej popularności wybrana została biblioteka \emph{Hot Chocolate},
@@ -59,22 +60,20 @@
 
 
 	\subsection{SPA}
-		angular
+		Do stworzenia strony zdecydowano się użyć frameworku Angular 8.
+		Serwowana będzie ze środowiska uruchomieniowego Node.js.
+		Projekt zbudowany jest z osobnych modułów dla każdej funkcjonalności.
+		Widoki składane są z komponentów --- są to elementy zawierające szablon HTML, style CSS oraz logikę i dane w klasie napisanej w języku typescript.
+		Dodatkowo komponenty mogą korzystać z serwisów. Serwisy to specjalne klasy, które są wstrzykiwane jako zależności (ang \emph{Dependency injection}).
+		Zawierają się w nich dane oraz logika dzielone między wieloma komponentami.
+		Nawigacja pomiędzy poszczególnymi widokami odbywa się przy pomocy dedykowanego routera, który przechwytuje nawigację przeglądarki.
+		Dzięki temu nawet nawigacja do tyłu nie powoduje przeładowania całej strony tylko poszczególnych zmienionych elementów.
 
-		\begin{enumerate}
-			\item strona internetowa typu Single-Page Application\\
-				zaprojektowana w frameworku Angular, uruchamiana w środowisku Node.js.
-				Architektura SPA pozwala tworzyć strony, które w swoim działaniu bardziej przypominają tradycyjne aplikacje komputerowe.
-				
-			\item serwer uwierzytelniający użytkowników\\
-			\item serwer dostępowy do danych aplikacji\\
-				umożliwiający pobieranie danych zgodnie ze standardem GraphQL.
-				Zaimplementowany przy pomocy biblioteki hotchocolate na platformie ASP.Net Core 3.0
-			\item baza danych --- PostreSQL
-			\item serwer dostarczający odwrócone proxy --- nginx
-		\end{enumerate}
+		Do budowy widoków użyta zostanie biblioteka Angular Material,
+		która zawiera często wykorzystywane elementy zbudowane zgodnie z oficjalną specyfikacją \emph{Material design}.
 
-
+		Taka modularna architektura pozwala na wielokrotne używanie tych samych komponentów oraz na zachowanie czytelnej struktury kodu.
+		
 Szablon składa się z pliku głównego, plików z kodem kolejnych rozdziałów i dodatków (włączanych do kompilacji w dokumencie głównym), katalogów z plikami grafik (włączanymi do rysunków w rozdziałach), pliku ze skrótami (opcjonalny), pliku z danymi bibliograficznymi (plik \texttt{dokumentacja.bib}). Taki ,,układ'' zapewnia porządek oraz pozwala na selektywną kompilację rozdziałów. Wyjaśniając to dokładniej, podczas tworzenia szablonu przyjęto następującą konwencję:
 \begin{itemize}
 \item Plikiem głównym jest plik \texttt{Dyplom.tex}. To w nim znajdują się deklaracje wszystkich używanych styli, definicje makr oraz ustawień, jak również polecenie \verb+\begin{document}+.
