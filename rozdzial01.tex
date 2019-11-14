@@ -17,10 +17,46 @@
 \section{Układ pracy}
 
 \section{Przegląd technologii}
-	\subsection{Protokoły komunikacji z usługami sieciowymi}
+	\subsection{Paradygmaty komunikacji z usługami sieciowymi}
 		\begin{description}
-			\item[SOAP]
-			\item[REST] 
+			\item[SOAP] to ustandaryzowany protokół służący do opakowywania przesyłanych danych. 
+				Często porównywany do wkładania danych do ,,koperty'', definiuje sposób kodowania i dekodowania danych do formatu XML \cite{SOAP}.
+				Paczka z danymi zawiera również informacje opisujące dane oraz w jaki sposób mają być przetworzone.
+				Wykorzystuje przez to więcej zasobów niż czysty JSON z danymi -- zarówno w kwestii rozmiaru przesyłanych danych jak i czasu ich przetworzenia.
+				Zapytanie w SOAP jest zawsze typu POST, a więc odpowiedź nie jest zapisywana przez przeglądarkę i za każdym razem wywoływana jest procedura w Api.
+				Jest jednak dzięki temu bardziej zaawansowany - zapewnia wsparcie dla transakcji spełniających ACID
+				oraz posiada rozszerzone mechanizmy bezpieczeństwa -- oprócz SSL, implementuje również WS-Security.
+				Te właściwości są istotnymi zaletami wykorzystywanymi w aplikacjach typu enterprise.
+
+				% budowa SOAP Message (envelope)
+
+			\item[REST] w przeciwieństwie do \emph{SOAP} oraz \emph{GraphQL}, \emph{REST} nie jest protokołem lecz stylem architektury.
+				Nie narzuca konkretnej implementacji ani specyfikacji. Definiuje za to wymagania, które powinno spełnić Api typu RESTful \cite{RESTful}:
+				\begin{enumerate}
+					\item Klient-Serwer: podział ról i odpowiedzialności -- klient i serwer mogą być rozwijane niezależnie, o ile interfejs pozostanie bez zmian.
+					\item Bezstanowość: wszystkie informacje potrzebne to wykonania żądania zawarte są w zapytaniu -- jego wykonanie jest niezależne od poprzedniego stanu serwera.
+					\item Pamięć podręczna: klient jest w stanie zapisać odpowiedź serwera w pamięci podręcznej aby ograniczać zapytania do serwera.
+					\item System warstwowy: klient nie musi mieć bezpośredniego połączenia z serwerem
+						-- pomiędzy może być zaimplementowany load-balancer, proxy lub inny serwis, który jest niewidoczny ani dla serwera ani klienta.
+					\item Kod na żądanie (opcjonalne): Serwer jest w stanie przesłać wykonywalny kod na żądanie klienta, np. skrypty w języku JavaScript.
+					\item Jednolity interfejs: określa wymagania dotyczące interfejsu między klientem a serwerem:
+						\begin{itemize}
+							\item zasoby są identyfikowane unikalnym URI
+							\item serwer opisuje dane w postaci reprezentacji, klient modyfikuje dane poprzez przesłanie reprezentacji
+							\item każda wiadomość zawiera informacje, w jaki sposób przetworzyć dane
+							\item HATEOAS (ang.\ \emph{Hypermedia as the Engine of Application State})
+								-- serwer przesyła linki do akcji, które mogą zostać wykonane dla danego stanu zasobu
+						\end{itemize}
+				\end{enumerate}
+
+				Z powodu braku jednolitej specyfikacji, istnieje wiele różnych implementacji tych wymagań.
+				Często są one zaniedbywane, a Api nazywane REST-owym tak naprawdę nie różni się wtedy za wiele od RPC (ang.\ \emph{Remote Procedure Call}).
+				Z tego powodu zaczęto określać stopień zaawansowania implementacji (rys X) --- większość implementacji 
+
+				% OBRAZEK Z https://www.martinfowler.com/articles/richardsonMaturityModel.html
+
+
+
 			\item[GraphQL] 
 		\end{description}
 
