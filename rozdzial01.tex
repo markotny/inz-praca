@@ -8,7 +8,7 @@
 
 	Zakres pracy obejmuje:
 	\begin{itemize}
-		\item analiza 
+		\item porównanie istniejących metod tworzenia API
 		\item opracowanie struktury aplikacji
 		\item implementacja aplikacji
 		\item testy 
@@ -246,15 +246,25 @@
 		do którego powstało mnóstwo różniących się implementacji.
 
 	\subsection{Platformy do tworzenia SPA}
+		Powstało mnóstwo bibliotek i frameworków do tworzenia stron internetowych i choć różnią się implementacją, to zasada działania pozostaje podobna.
+		Oto trzy najpopularniejsze obecnie platformy:
 		\begin{description}
-			\item[Angular] 
-			\item[React] 
-			\item[Vue] 
+			\item[Angular] to framework stworzony przez Google, napisany w języku TypeScript.
+				Zawiera w sobie pełen zestaw narzędzi i bibliotek do stworzenia strony wspierającej również urządzenia mobilne.
+				Definiuje wzorce projektowe, które określają strukturę projektu i dobre praktyki.
+
+			\item[React] to biblioteka do tworzenia UI opracowana przez Facebooka.
+				Do stworzenia pełnej, zaawansowanej strony wymaga użycia dodatkowych bibliotek do zarządzania stanem, trasowania czy interakcji z API.
+				Nie narzuca żadnej struktury projektu, przez co każdy projekt może być zbudowany inaczej.
+				Wymaga więc osoby doświadczonej, która kieruje projektem.
+
+			\item[Vue] nie jest zarządzany przez jedną korporację, lecz przez społeczność.
+				Jest najbardziej przystępny, pozwala na stworzenie zarówno prostych stron, jak i złożonych poprzez rozszerzanie infrastruktury.
+				Jest to osiągalne dzięki wysoce modularnej i elastycznej strukturze.
 		\end{description}
 
 	\subsection{Platformy do tworzenia API}
-		\begin{description}
-			\item[ASP.Net Core]
-			\item[Node.js] 
-			\item[Django] 
-		\end{description}
+		Serwer Api można stworzyć w większości istniejących języków programowania.
+		Najczęściej wykorzystywane są frameworki zbudowane w PHP (Laravel), Javie (Spring), Pytonie (Django), C\# (ASP.Net Core), Ruby (Rails) i Node.js (Express).
+		W tym projekcie zdecydowano się użyć ASP.Net Core 3.0 ze względu na wieloplatformowość (wsparcie dla kontenerów linuxowych),
+		wbudowany system wstrzykiwania zależności (ang.\ \emph{Dependency Injection}), nowoczesny język C\# 8 oraz wysoki stopień zaawansowania bibliotek implementujących GraphQL.
