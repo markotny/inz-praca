@@ -1,4 +1,4 @@
-<mxfile host="www.draw.io" modified="2019-11-18T19:12:32.866Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0" etag="Myei0qWNJNAXlpVGWtJC" version="12.2.6" type="github" pages="1">
+<mxfile host="www.draw.io" modified="2019-11-18T19:19:43.499Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0" etag="Qbi-CUDW9rwQBqf0mDr0" version="12.2.6" type="github" pages="1">
   <diagram id="wGXBlTjhRJmKjUgeErdY" name="Page-1">
     <mxGraphModel dx="469" dy="256" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
@@ -20,7 +20,7 @@
         </mxCell>
         <mxCell id="OTAA0A-x4Ma7dqSFBqwU-11" value="(B) Authorization Code" style="text;html=1;resizable=0;points=[];align=center;verticalAlign=middle;labelBackgroundColor=#ffffff;fontSize=15;" parent="OTAA0A-x4Ma7dqSFBqwU-7" vertex="1" connectable="0">
           <mxGeometry x="0.3663" y="2" relative="1" as="geometry">
-            <mxPoint x="17.5" y="-2" as="offset"/>
+            <mxPoint x="67.5" y="-2" as="offset"/>
           </mxGeometry>
         </mxCell>
         <mxCell id="OTAA0A-x4Ma7dqSFBqwU-4" value="&lt;div style=&quot;font-size: 20px;&quot;&gt;Authorization Endpoint&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=20;" parent="1" vertex="1">
@@ -36,7 +36,7 @@
         </mxCell>
         <mxCell id="OTAA0A-x4Ma7dqSFBqwU-13" value="(D) Access Token" style="text;html=1;resizable=0;points=[];align=center;verticalAlign=middle;labelBackgroundColor=#ffffff;fontSize=15;" parent="OTAA0A-x4Ma7dqSFBqwU-9" vertex="1" connectable="0">
           <mxGeometry x="0.4615" y="-2" relative="1" as="geometry">
-            <mxPoint x="10" y="2" as="offset"/>
+            <mxPoint x="90" y="2" as="offset"/>
           </mxGeometry>
         </mxCell>
         <mxCell id="OTAA0A-x4Ma7dqSFBqwU-5" value="&lt;div style=&quot;font-size: 20px&quot;&gt;Token&lt;br&gt;Endpoint&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=20;" parent="1" vertex="1">
@@ -52,7 +52,7 @@
         </mxCell>
         <mxCell id="OTAA0A-x4Ma7dqSFBqwU-10" value="(A) Authorization Request&lt;br style=&quot;font-size: 15px&quot;&gt;+ t(code_verifier), t_m" style="text;html=1;resizable=0;points=[];align=center;verticalAlign=middle;labelBackgroundColor=#ffffff;fontSize=15;" parent="OTAA0A-x4Ma7dqSFBqwU-3" vertex="1" connectable="0">
           <mxGeometry y="45" relative="1" as="geometry">
-            <mxPoint x="-20" y="45" as="offset"/>
+            <mxPoint x="-30" y="45" as="offset"/>
           </mxGeometry>
         </mxCell>
         <mxCell id="OTAA0A-x4Ma7dqSFBqwU-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=20;" parent="1" source="OTAA0A-x4Ma7dqSFBqwU-1" target="OTAA0A-x4Ma7dqSFBqwU-5" edge="1">
