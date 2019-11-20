@@ -1,97 +1,256 @@
 % !TEX root = ./Dyplom.tex
 
-\chapter{Analiza wymagań projektowych}
+\chapter{Przegląd technologii}
+\label{sec:przegTech}
 
-\section{Wymagania funkcjonalne}
-	Wymagania funkcjonalne określają wymagania dotyczące pożądanego zachowania systemu.
-	Definiują, jakie usługi ma oferować i jak ma reagować na określone dane wejściowe.
-	Wyszczególniono następujące wymagania funkcjonalne:
-	\begin{enumerate}
-		\item System zawiera katalog albumów
-		\item Albumy da się wyświetlać wraz ze szczegółami
-		\item Każdy album można oceniać oraz dodawać recenzję
-		\item Istnieje możliwość dodawania nowych albumów
-		\item Wyszukiwanie albumów korzysta z bazy zewnętrznego serwisu
-		\item Możliwość rejestracji i logowania
-		\item Wybór pomiędzy ciemnym i jasnym motywem aplikacji
-	\end{enumerate}
+\section{Paradygmaty komunikacji z usługami sieciowymi}
+	\begin{description}
+		\item[RPC] to prosty protokół zdalnego wywołania procedury.
+			Klient wysyła do serwera potrzebne dane do wywołania akcji: nazwę metody oraz parametry.
+			W podstawowej wersji całość komunikacji odbywa się za pomocą jednego punktu dostępowego (ang.\ \emph{endpoint}).
+			Zwykle wykorzystywane są wariacje protokołu np. JSON-RPC, które przesyłają dane w formacie JSON.
 
-\section{Wymagania niefunkcjonalne}
-	Wymagania te określają właściwości systemu, jego ograniczenia i standardy w jakich pracuje.
-	Wymagania systemu spełniającego założenia projektowe są następujące:
-	\begin{enumerate}
-		\item Aplikacja powinna być obsługiwana przez obecne wersje przeglądarek
-		\item Do poprawnego działania wymagane jest połączenie z Internetem
-		\item Aplikacja powinna być napisana w sposób umożliwiający łatwe dodawanie nowej funkcjonalności
-		\item Dane użytkowników są przechowywane w bezpieczny sposób
-	\end{enumerate}
+			Przykładowe wywołanie oraz odpowiedź:
+			\begin{figure}[!htb]
+				\centering
+				\begin{minipage}{.5\textwidth}
+					\begin{lstlisting}[label=lst:rpcReq]
+						{
+							"jsonrpc": "2.0",
+							"method": "divide",
+							"params": {
+								"dividend": 32,
+								"divisor": 4
+							},
+							"id": 5
+						}
+					\end{lstlisting}	
+				\end{minipage}%
+				\begin{minipage}{0.5\textwidth}
+					\begin{lstlisting}[label=lst:rpcRes]
+						{
+							"jsonrpc": "2.0",
+							"result": 8,
+							"id": 5
+						}
+					\end{lstlisting}
+				\end{minipage}
+			\end{figure}
 
-\section{Przypadki użycia}
-	Na rysunku~\ref{fig:useCase} przedstawiono diagram przypadków użycia użytkownika aplikacji.
-	Zawarte zostały główne funkcjonalności skupiające się na przeglądaniu albumów i dodawaniu recenzji.
-	W ten sposób wyszczególniono następujące przypadki użycia:
-	\begin{enumerate}
-		\item Dodanie oceny albumu\\
-			Przypadek użycia dotyczy akcji dodania oceny do albumu.
-			Dodawanie opisowej recenzji jest opcjonalne, dlatego ujęte zostało jako opcjonalny, rozszerzający przypadek użycia.
+		\item[SOAP] to ustandaryzowany protokół służący do opakowywania przesyłanych danych. 
+			Często porównywany do wkładania danych do ,,koperty'', definiuje sposób kodowania i dekodowania danych do formatu XML~\cite{SOAP}.
+			Paczka z danymi zawiera również informacje opisujące dane oraz w jaki sposób mają być przetworzone.
+			Wykorzystuje przez to więcej zasobów niż czysty JSON z danymi -- zarówno w kwestii rozmiaru przesyłanych danych jak i czasu ich przetworzenia.
+			
+			Opcjonalny lecz zalecany jest dokument WSDL, który w ustandaryzowany sposób określa punkty dostępowe usług serwisu.
+			Umożliwia automatyczne generowanie testów serwisu oraz funkcji wywołujących usługi.
+			
+			Zapytanie w SOAP jest zawsze typu POST, a więc odpowiedź nie jest zapisywana przez przeglądarkę i za każdym razem wywoływana jest procedura w Api.
+			Jest jednak dzięki temu bardziej zaawansowany - zapewnia wsparcie dla transakcji spełniających ACID
+			oraz posiada rozszerzone mechanizmy bezpieczeństwa -- oprócz SSL, implementuje również WS-Security.
+			Te właściwości są istotnymi zaletami wykorzystywanymi w aplikacjach typu enterprise.
 
-		\item Wyszukanie albumu z bazy Last.fm\\
-			Aby dodać ocenę do albumu należy wyszukać odpowiedni album wpisując jego nazwę lub wybrać z najpopularniejszych albumów podanego artysty.
-			Wyszukiwarka korzysta z API Last.fm, jednak nie wymaga konta na tym serwisie.
+			Przykładowa budowa zapytania SOAP~\cite{SoapMsg}:
 
-		\item Logowanie\\
-			Dodawanie ocen dostępne jest tylko dla zalogowanych użytkowników.
-			Przeglądanie albumów i recenzji nie wymaga konta.
-		
-		\item Rejestracja\\
-			Jeśli użytkownik nie ma jeszcze utworzonego konta, a chce dodawać oceny to może się zarejestrować.
+			\begin{lstlisting}[label=lst:soapReq, xleftmargin=0.5cm]
+				<?xml version="1.0"?>
 
-		\item Przeglądanie listy albumów\\
-			Użytkownik może przeglądać wszystkie albumy, do których zostały dodane oceny.
-			Po kliknięciu w album przenoszony zostaje do widoku wyświetlającego wszystkie dane albumu.
+				<soap:Envelope
+				xmlns:soap="http://www.w3.org/2003/05/soap-envelope/"
+				soap:encodingStyle="http://www.w3.org/2003/05/soap-encoding">
 
-		\item Zarządzanie ustawieniami\\
-			Przypadek użycia opisujący zmianę ustawień aplikacji, które są unikalne dla każdego użytkownika.
-			Na chwilę obecną możliwa jest zmiana motywu głównego aplikacji (jasny/ciemny).
+				<soap:Body xmlns:m="http://www.example.org/stock">
+					<m:GetStockPrice>
+						<m:StockName>IBM</m:StockName>
+					</m:GetStockPrice>
+				</soap:Body>
 
-	\end{enumerate}
+				</soap:Envelope>
+			\end{lstlisting}
+
+			oraz odpowiedź:
+			\begin{lstlisting}[label=lst:soapRes, xleftmargin=0.5cm]
+				<?xml version="1.0"?>
+
+				<soap:Envelope
+				xmlns:soap="http://www.w3.org/2003/05/soap-envelope/"
+				soap:encodingStyle="http://www.w3.org/2003/05/soap-encoding">
+
+				<soap:Body xmlns:m="http://www.example.org/stock">
+					<m:GetStockPriceResponse>
+						<m:Price>34.5</m:Price>
+					</m:GetStockPriceResponse>
+				</soap:Body>
+
+				</soap:Envelope>
+			\end{lstlisting}
+			
+		\item[REST] nie jest protokołem lecz stylem architektury.
+			Nie narzuca konkretnej implementacji ani specyfikacji. Definiuje za to wymagania, które powinno spełnić Api typu RESTful~\cite{RESTful}:
+			\begin{enumerate}
+				\item Klient-Serwer: podział ról i odpowiedzialności -- klient i serwer mogą być rozwijane niezależnie, o ile interfejs pozostanie bez zmian.
+				\item Bezstanowość: wszystkie informacje potrzebne to wykonania żądania zawarte są w zapytaniu -- jego wykonanie jest niezależne od poprzedniego stanu serwera.
+				\item Pamięć podręczna: klient jest w stanie zapisać odpowiedź serwera w pamięci podręcznej aby ograniczać zapytania do serwera.
+				\item System warstwowy: klient nie musi mieć bezpośredniego połączenia z serwerem
+					-- pomiędzy może być zaimplementowany load-balancer, proxy lub inny serwis, który jest niewidoczny ani dla serwera ani klienta.
+				\item Kod na żądanie (opcjonalne): Serwer jest w stanie przesłać wykonywalny kod na żądanie klienta, np. skrypty w języku JavaScript.
+				\item Jednolity interfejs: określa wymagania dotyczące interfejsu między klientem a serwerem:
+					\begin{itemize}
+						\item zasoby są identyfikowane unikalnym URI
+						\item serwer opisuje dane w postaci reprezentacji, klient modyfikuje dane poprzez przesłanie reprezentacji
+						\item każda wiadomość zawiera informacje, w jaki sposób przetworzyć dane
+						\item HATEOAS (ang.\ \emph{Hypermedia as the Engine of Application State})
+							-- serwer przesyła linki do akcji, które mogą zostać wykonane dla danego stanu zasobu
+					\end{itemize}
+			\end{enumerate}
+
+			Większość developerów pomija jednak implementowanie HATEOAS, ponieważ wymaga dużego nakładu pracy zarówno po stronie serwera jak i klienta
+			i często nie jest potrzebne dla prostych zapytań typu CRUD.
+
+			Przykładowa odpowiedź na zapytanie \verb|GET /accounts/12345|~\cite{RestMsg}:
+			\begin{lstlisting}[label=lst:restRes]
+				{
+						"account": {
+								"account_number": 12345,
+								"balance": {
+										"currency": "usd",
+										"value": 100.00
+								},
+								"links": {
+										"deposit": "/accounts/12345/deposit",
+										"withdraw": "/accounts/12345/withdraw",
+										"transfer": "/accounts/12345/transfer",
+										"close": "/accounts/12345/close"
+								}
+						}
+				}
+			\end{lstlisting}
+			
+			W odpowiedzi zawarta jest lista \verb|links| --- są to akcje dostępne dla danego stanu konta.
+			Jeśli stan konta byłby na minusie, część z tych akcji nie pojawiła by się w odpowiedzi.
+			Takie działanie API wymaga jednak zaimplementowania maszyny stanów na serwerze.
+
+		\item[GraphQL] to język zapytań dla API oraz środowisko do wykonywania tych zapytań na istniejących danych~\cite{GQLsite}.
+			Specyfikacja nie określa w jaki sposób ma być zbudowane Api ale oferuje następujące zasady projektowania\cite{GQLspec}:
+			\begin{itemize}
+				\item hierarchiczna struktura zapytań --- pola są zagnieżdżone, a zapytanie ma taki sam kształt jak dane które zwraca
+				\item budowa GraphQL jest determinowana potrzebami aplikacji klienckiej
+				\item silne typowanie --- w schemacie każde pole ma zdefiniowany typ, który jest walidowany
+				\item zapytania określane przez klienta --- serwer GraphQL określa schemat wszystkich możliwych zapytań,
+					a klient sam określa, które pola ma zwrócić
+				\item introspekcyjny --- język GraphQL umożliwia odpytywanie serwera o jego schemat i typy
+			\end{itemize}
+
+			Język zapytań GraphQL (ang.\ \emph{Query Language}) znacznie różni się od SQL.
+			Do pobierania danych zamiast \emph{SELECT} używany jest typ \emph{Query},
+			natomiast \emph{INSERT}, \emph{UPDATE} oraz \emph{DELETE} zawierają się w jednym typie: \emph{Mutatation}.
+			Dodatkowo zdefiniowany jest typ \emph{Subscription}, który używany jest do nasłuchiwania zmian przez gniazda (ang.\ \emph{socket}).
+			Przykładowe zapytanie GraphQL pokazano poniżej:
+
+			\begin{lstlisting}[label=lst:gqlQuery]
+				query getAlbum($id: ID!) {
+					album(id: "7803c5ee938249daa7ed67574c13e389") {
+						id
+						title
+						albumArtist {
+							name
+						}
+					}
+				}
+			\end{lstlisting}
+			
+			Odpowiedź z serwera na takie zapytanie ma analogiczną strukturę:
+
+			\begin{lstlisting}[label=lst:gqlQueryRes]
+				{
+					"data": {
+						"album": {
+							"id": "7803c5ee938249daa7ed67574c13e389",
+							"title": "Until the Quiet Comes",
+							"albumArtist": {
+								"name": "Flying Lotus"
+							}
+						}
+					}
+				}
+			\end{lstlisting}
+
+			Aby wykonanie takiego zapytania było możliwe, serwer musi zadeklarować odpowiednie typy.
+			Typ reprezentuje obiekt odpowiadający jakiejś funkcji aplikacji~\cite{GraphQL}.
+			W kontekście strony muzycznej do typami byłyby między innymi albumy czy artyści.
+			Typ składa się z pól, które odpowiadają danym obiektu.
+			Każde pole zwraca określony typ danych.
+
+			Typy mogą być skalarne lub obiektowe: typ skalarny zawsze zwraca wartość, natomiast typ obiektowy złożony jest z kolejnych pól.
+			Wbudowane typy skalarne to Int, Float, String, Boolean, ID.
+			Możliwe jest tworzenie dodatkowych typów skalarnych np. DateTime, aby zapewnić odpowiednie formatowanie i walidację danych.
+			Dodatkowo typy mogą zostać oznaczone wykrzyknikiem, co znaczy że zawsze zwrócą wartość (ang.\ \emph{non-nullable}).
+			
+			Przykładowy schemat, który umożliwi wykonanie powyższego zapytania wygląda następująco:
+			
+			\begin{lstlisting}[label=lst:gqlSchema]
+				type Album {
+					id: ID!
+					title: String!
+					albumArtist: Artist!
+					releaseDate: DateTime
+					averageRating: Float
+				}
+
+				type Artist {
+					id: ID!
+					albums: [Album!]!
+					name: String!
+				}
+
+				type Query {
+					album(id: ID!): Album
+					artist(id: ID!): Artist
+				}
+			\end{lstlisting}
+
+			Wszystkie zapytania wywoływane są na jednym punkcie dostępowym (np. \verb|/api/graphql|),
+			przez co nie jest możliwe proste zapisywanie odpowiedzi HTTP serwera.
+			Wymusza to implementację bardziej zaawansowanych mechanizmów cache po stronie klienta,
+			np. poprzez identyfikacje częściowych obiektów po ID i uzupełnianie ich danych w pamięci podręcznej.
+	\end{description}
+
+	Żaden z tych protokołów nie jest najlepszy pod każdym aspektem i wszystkie wciąż mają swoje zastosowania.
 	
-	\begin{figure}[ht]
-		\centering
-			\includegraphics[width=\linewidth]{rys02/useCase.pdf}
-		 \caption{Diagram przypadków użycia}
-		 \label{fig:useCase}
-	\end{figure}
+	RPC jest najczęściej używane w API nastawionych na akcje.
+	W sytuacjach, gdzie często wywołanie metody nie wpływa na stan zasobu RPC jest wystarczające.
 
-\section{Założenia projektowe}
-	Całość aplikacji zaprojektowana zostanie ze wsparciem platformy Docker.
-	Każda odrębna część systemu zamknięta będzie we własnym wirtualnym kontenerze:
-	\begin{enumerate}
-		\item strona internetowa typu Single-Page Application:\\
-			Architektura SPA pozwala tworzyć strony, które w swoim działaniu bardziej przypominają tradycyjne aplikacje komputerowe.
-			Podczas interakcji użytkownika ze stroną fragmenty widoku są dynamicznie odświeżane zamiast przeładowywania całej strony.
-			Dodatkowo strona powinna przechowywać w pamięci zapytania do serwera aby minimalizować czas oczekiwania na dane.
+	SOAP rozbudowuje RPC zapewniając bezpieczeństwo i transakcje.
+	Istnieją jednak nowsze rozwiązania takie jak OData bazujące na REST, które mają znacznie lepszą wydajność i kompatybilność.
 
-		\item serwer uwierzytelniający użytkowników:\\
-			Strona internetowa działa po stronie klienta, przez co możliwa jest znaczna ingerencja w dane.
-			Aby minimalizować zagrożenia, zaimplementowane zostanie uwierzytelnianie użytkowników wykorzystujące bezpieczny protokół.
-			Wykorzystany standard powinien zapewnić zarówno uwierzytelnianie jak i autoryzację.
+	REST jest najbardziej zaawansowaną architekturą (jeśli zaimplementowana w pełni) i jednocześnie najczęściej spotykaną.
+	Pozwala na szybkie operacje typu CRUD oraz zaawansowaną nawigację przez HATEOAS.
+	Dodatkowo dzięki unikalnym URI dla każdego zasobu umożliwia łatwe stworzenie skutecznego cache.
 
-		\item serwer dostępowy do danych aplikacji:\\
-			Grafowy dostęp do bazy danych zaimplementowany zostanie za pomocą technologii GraphQL.
-			Serwer umożliwiać będzie pobieranie danych stosując zapytania w języku GraphQL\@.
-			Dzięki temu relacje między danymi przedstawione są w postaci grafu,
-			co pozwala formować skompilowane zapytania bez potrzeby tworzenia dedykowanych kontrolerów i modeli DTO po stronie API\@.
+	GraphQL umożliwia stworzenie uniwersalnego API dla wielu klientów zapewniając wysoką wydajność.
+	Definiuje jednoznaczną specyfikację zapewniającą silne typowanie oraz introspekcję w przeciwieństwie do REST,
+	do którego powstało mnóstwo różniących się implementacji.
 
-		\item baza danych:\\
-			Baza danych powinna umożliwiać przechowywanie relacji między obiektami w taki sposób,
-			aby możliwe było reprezentowanie danych w postaci grafu.
+\section{Platformy do tworzenia SPA}
+	Powstało mnóstwo bibliotek i frameworków do tworzenia stron internetowych i choć różnią się implementacją, to zasada działania pozostaje podobna.
+	Oto trzy najpopularniejsze obecnie platformy:
+	\begin{description}
+		\item[Angular] to framework stworzony przez Google, napisany w języku TypeScript.
+			Zawiera w sobie pełen zestaw narzędzi i bibliotek do stworzenia strony wspierającej również urządzenia mobilne.
+			Definiuje wzorce projektowe, które określają strukturę projektu i dobre praktyki.
 
-		\item serwer dostarczający odwrócone proxy:\\
-			Z racji tego, że użytkownicy będą przekierowywani między główną stroną, a stroną do uwierzytelniania,
-			adresy serwerów zarejestrowane będą w odwróconym proxy.
-			Będzie to również główny punkt dostępu do aplikacji, który będzie kierował ruchem.
-			Dodatkowo, będzie obsługiwał szyfrowanie przesyłanych danych protokołem HTTPS\@.
+		\item[React] to biblioteka do tworzenia UI opracowana przez Facebooka.
+			Do stworzenia pełnej, zaawansowanej strony wymaga użycia dodatkowych bibliotek do zarządzania stanem, trasowania czy interakcji z API.
+			Nie narzuca żadnej struktury projektu, przez co każdy projekt może być zbudowany inaczej.
+			Wymaga więc osoby doświadczonej, która kieruje projektem.
 
-	\end{enumerate}
-		
+		\item[Vue] nie jest zarządzany przez jedną korporację, lecz przez społeczność.
+			Jest najbardziej przystępny, pozwala na stworzenie zarówno prostych stron, jak i złożonych poprzez rozszerzanie infrastruktury.
+			Jest to osiągalne dzięki wysoce modularnej i elastycznej strukturze.
+	\end{description}
+
+\section{Platformy do tworzenia API}
+	Serwer Api można stworzyć w większości istniejących języków programowania.
+	Najczęściej wykorzystywane są frameworki zbudowane w PHP (Laravel), Javie (Spring), Pytonie (Django), C\# (ASP.Net Core), Ruby (Rails) i Node.js (Express).
+	W tym projekcie zdecydowano się użyć ASP.Net Core 3.0 ze względu na wieloplatformowość (wsparcie dla kontenerów linuksowych),
+	wbudowany system wstrzykiwania zależności (ang.\ \emph{Dependency Injection}), nowoczesny język C\# 8 oraz wysoki stopień zaawansowania bibliotek implementujących GraphQL.
