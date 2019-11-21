@@ -4,7 +4,146 @@
 \section{Docker}
 	Do zbudowania aplikacji użyto narzędzia \emph{docker-compose}.
 	Pozwala ono definiować kontenery, które uruchomione zostaną we wspólnym środowisku.
+	Dla każdego kontenera zdefiniowane zostały następujące właściwości:
+	\begin{description}
+		\item[container\_name] nazwa kontenera
+		\item[image] obraz, z którego będzie zbudowany
+		\item[build] instrukcje do zbudowania obrazu
+		\item[networks] wewnętrzne sieci, do których podłączony zostanie kontener
+		\item[volumes] foldery hosta, które zostaną zmapowane do adresu wewnątrz kontenera
+		\item[ports] porty hosta, które zostaną zmapowane na porty kontenera
+		\item[environment] zmienne środowiskowe wewnątrz kontenera
+		\item[depends\_on] kontenery, które powinny zostać zbudowane przed opisywanym kontenerem
+	\end{description}
+	Każdy kontener musi mieć zdefiniowany \textbf{image}, z którego zostanie zbudowany
+	lub parametry \textbf{build} z adresem pliku Dockerfile zawierającym przepis na zbudowanie obrazu.
 	
+	Pliki docker-compose są przyłączeniowe; podczas budowania środowiska można zdefiniować więcej niż jeden.
+	Zaletę tę wykorzystano w projekcie i rozdzielono pliki docker-compose na wersje odpowiadające odpowiednim środowiskom.
+	Proces budowania środowiska przedstawiony zostanie na przykładzie kontenera \verb|authServer|.
+
+	\subsection{Budowanie środowiska: docker-compose}
+		We fragmencie kodu~\ref{lst:docker-compose} przedstawiono ustawienia wspólne dla wszystkich środowisk.
+		Znajduje się tu nazwa kontenera, nazwa wynikowego obrazu, sieć do której jest podłączony oraz kontenery, od których jest zależny.
+		Sieć \verb|mainNetwork| jest wspólna dla wszystkich kontenerów.
+		Określona jest zależność od kontenera \verb|mainDB|, ponieważ serwis korzysta z bazy od razu przy uruchomieniu serwera.
+
+		\begin{lstlisting}[label=lst:docker-compose,caption=Wspólne ustawienia kontenera authServer]
+			authserver:
+				container_name: "authServer"
+				image: ${DOCKER_REGISTRY-}authserver
+				networks:
+					- "mainNetwork"
+				depends_on:
+					- "maindb"
+		\end{lstlisting}
+
+		Natomiast fragment~\ref{lst:docker-compose.override} zawiera ustawienia tego samego kontenera dla środowiska developerskiego.
+		Zdefiniowane zostały następujące zmienne środowiskowe:
+		\begin{description}
+			\item[ENABLE\_POLLING] wykorzystywana w Dockerfile, określa czy kontener zostanie przebudowany po każdych zmianach w plikach źródłowych
+			\item[ASPNETCORE\_ENVIRONMENT] wykorzystywana jest wewnątrz programu do określenia odpowiednich konfiguracji
+			\item[ASPNETCORE\_URLS] adresy wykorzystywane przez serwer, adres HTTPS (443) nie jest wymieniony, ponieważ szyfrowaniem zajmuje się kontener z odwróconym proxy
+			\item[ConnectionStrings\_\_DefaultConnection] ustawienia połączenia do bazy, wykorzystywany jest wewnętrzny adres kontenera \verb|mainDB|
+		\end{description}
+		Kontener posiada osobne pliki Dockerfile dla każdego środowiska, ponieważ w środowisku developerskim zaimplementowano obserwowanie plików źródłowych.
+		Dzięki temu, każda zmiana w kodzie skutkuje natychmiastowym przebudowaniem kontenera, co znacznie przyspiesza pracę.
+		Treść pliku Dockerfile (listing~\ref{lst:dockerfile}) została dokładnie opisana w następnym rozdziale.
+		W tym środowisku wszystkie kontenery mają również zmapowane porty na zewnątrz.
+		Folder z kodem źródłowym został zmapowany na adres \verb|/app|, co również podyktowane jest wykrywaniem zmian w plikach.
+
+		\begin{lstlisting}[label=lst:docker-compose.override,caption=Ustawienia kontenera authServer dla środowiska developerskiego]
+			authserver:
+				environment:
+					- ENABLE_POLLING=1
+					- ASPNETCORE_ENVIRONMENT=Development
+					- ASPNETCORE_URLS=http://+:80
+					- ConnectionStrings__DefaultConnection=Server=mainDB;Port=5432; ...
+				build:
+					context: .
+					dockerfile: AuthServer/Dockerfile
+				ports:
+					- "5550:80"
+				volumes:
+					- "./AuthServer/:/app"
+		\end{lstlisting}
+
+	\subsection{Budowanie kontenera: Dockerfile}
+	\label{sec:Dockerfile}
+
+		Często do utworzenia serwisu wystarczy gotowy obraz dostępny w Docker Hub.
+		Jest to największy serwis typu Docker Registry: baza udostępnionych obrazów dockerowych przygotowanych przez użytkowników, grupy czy firmy.
+		Takie rozwiązanie jest wystarczające w przypadku kontenera \verb|revProxy|.
+		Obraz \verb|nginx| zawiera całą potrzebną funkcjonalność.
+
+		We wszystkich pozostałych przypadkach wymagane jest utworzenie pliku Dockerfile, który określa przepis na zbudowanie obrazu.
+		Zwykle nie buduje się całego obrazu od zera, lecz określa się inny obraz jako bazę i dopisuje się brakującą funkcjonalność.
+		Jest to możliwe dzięki warstwowej budowie obrazów.
+		W każdym obrazie zapisane są tylko zmiany w stosunku do obrazu bazowego,
+		co pozwala na przechowywanie ogromnej liczby obrazów w serwisach typu Docker Registry.
+		Przykładowo, obraz używany w kontenerze \verb|mainDB| rozszerza obraz \verb|postgres| w wersji 11.5 o zaledwie dwie komendy:
+		\begin{lstlisting}[label=lst:mainDB-Dockerfile]
+			FROM postgres:11.5
+			RUN echo "listen_addresses='*'" >> /var/lib/postgresql/postgresql.conf
+			EXPOSE 5432
+		\end{lstlisting}
+		komenda \verb|RUN| wywołuje podaną komendę w środku kontenera, natomiast komenda \verb|EXPOSE| aktywuje nasłuchiwanie na danym porcie.
+
+		Nieco bardziej skomplikowany jest Dockerfile budujący serwis \verb|authServer| dla środowiska developerskiego,
+		rozszerzający plik z projektu Dispersia/Dotnet-Watch-Docker-Example~\cite{dotnetWatch} o mechanizm wyłączania obserwowania z poziomu docker-compose:
+		\begin{lstlisting}[label=lst:dockerfile,caption=Plik Dockerfile dla środowiska developerskiego]
+			FROM mcr.microsoft.com/dotnet/core/sdk:3.0
+
+			WORKDIR /vsdbg
+			
+			RUN apt-get update \
+					&& apt-get install -y --no-install-recommends \
+									unzip \
+					&& rm -rf /var/lib/apt/lists/* \
+					&& curl -sSL https://aka.ms/getvsdbgsh \
+							| bash /dev/stdin -v latest -l /vsdbg
+			
+			ENV DOTNET_USE_POLLING_FILE_WATCHER ${ENABLE_POLLING:-0}
+			
+			WORKDIR /app
+			
+			ENTRYPOINT dotnet ${ENABLE_POLLING:+watch} run --urls=http://+:80		
+		\end{lstlisting}
+		
+		W pierwszym kroku za pomocą \verb|WORKDIR| ustawiany jest folder, względem którego wykonywane będą wszystkie komendy.
+		Następnie instalowany jest debugger .NET Core, który umożliwia debugowanie z Visual Studio na systemie hosta (Windows).
+		Zmienna \verb|DOTNET_USE_POLLING_FILE_WATCHER| ustawiana jest na podstawie zmiennej \verb|ENABLE_POLLING| skonfigurowanej w docker-compose.
+		Po zmianie katalogu roboczego na \verb|/app| ustawiana jest komenda uruchamiana po starcie kontenera.
+		Ona również jest zależna od zmiennej \verb|ENABLE_POLLING|: jeśli zmienna jest ustawiona na 1, uruchomiona zostanie komenda \verb|dotnet watch run|.
+		W przeciwnym wypadku będzie to komenda \verb|dotnet run|.
+
+		Produkcyjny Dockerfile (listing~\ref{lst:dockerfile.prod}) nie obsługuje debugowania i optymalizowany jest pod względem wydajności.
+		Wykorzystuje w tym celu warstwową naturę obrazów dockerowych.
+		Jako bazy wykorzystuje warianty \verb|buster-slim| oraz \verb|buster| obrazów,
+		które stworzone zostały specjalnie w tym celu.
+		Został opracowany przez grupę tworzącą .NET Core.
+
+		\begin{lstlisting}[label=lst:dockerfile.prod,caption=Plik Dockerfile budowany warstwowo]
+			FROM mcr.microsoft.com/dotnet/core/aspnet:3.0-buster-slim AS base
+			WORKDIR /app
+			EXPOSE 80
+			
+			FROM mcr.microsoft.com/dotnet/core/sdk:3.0-buster AS build
+			WORKDIR /src
+			COPY ["AuthServer/AuthServer.csproj", "AuthServer/"]
+			RUN dotnet restore "AuthServer/AuthServer.csproj"
+			COPY . .
+			WORKDIR "/src/AuthServer"
+			RUN dotnet build "AuthServer.csproj" -c Release -o /app/build
+			
+			FROM build AS publish
+			RUN dotnet publish "AuthServer.csproj" -c Release -o /app/publish
+			
+			FROM base AS final
+			WORKDIR /app
+			COPY --from=publish /app/publish .
+			ENTRYPOINT ["dotnet", "AuthServer.dll"]		
+		\end{lstlisting}
 
 \section{Strona internetowa}
 	\subsection{Zastosowane technologie}
