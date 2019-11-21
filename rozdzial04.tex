@@ -1,6 +1,40 @@
 \chapter{Projekt aplikacji}
 \label{sec:projekt}
 
+\section{Architektura fizyczna}
+	Zgodnie z założeniami projektowymi, całość aplikacji serwowana będzie z platformy dockerowej.
+	Podczas tworzenia aplikacji uruchamiana ona będzie na systemie \emph{Ubuntu 18.04} przy użyciu \emph{Windows Subsystem For Linux}.
+	Umożliwia to jednoczesne korzystanie z narzędzi dostępnych tylko pod systemem Windows (Visual Studio) i uruchamianie w docelowym systemie (Linux).
+	Wersja produkcyjna aplikacji umieszczona zostanie na serwerze z systemem Linux.
+
+	Na schemacie~\ref{fig:docker} przedstawiono architekturę aplikacji z podziałem na poszczególne kontenery.
+	Aby zapewnić najwyższe bezpieczeństwo, porty kontenerów nie są mapowane na zewnątrz dockera.
+	Wyjątkiem jest kontener z odwróconym proxy (\emph{revProxy}), który obsługuje całą komunikację ze światem zewnętrznym.
+	Kieruje on odpowiednio ruchem w zależności od adresu zapytania.
+	Na przykładzie lokalnego adresu zapytania obsługiwane będą w następujący sposób:
+	\begin{description}
+		\item[localhost/] domyślnie cały ruch kierowany jest do strony internetowej serwowanej z kontenera \emph{spa}
+		\item[auth.localhost/] zapytania z subdomeną \emph{auth} kierowane są do kontenera \emph{authServer} obsługującego zapytania związane z OpenID
+		\item[localhost/api/] jeśli zapytanie odnosi się do katalogu \emph{/api/} to zostaje obsłużone przez kontener \emph{reServer}
+	\end{description}
+
+	Kontener obsługujący zapytania API musi być dostępny z zewnątrz, ponieważ strona internetowa jest typu SPA,
+	a więc jest wszystkie zapytania będą wysyłane bezpośrednio z przeglądarki użytkownika.
+	Z tego samego powodu kontener \emph{spa} nie komunikuje się z resztą kontenerów, co ukazane zostało na schemacie.
+	Pozostałe kontenery korzystają z wewnętrznej sieci do komunikacji z bazą danych.
+	Dodatkowo, kontener \emph{reServer} komunikuje się z kontenerem \emph{authServer} do walidacji tokenów JWT oraz do pobierania danych zalogowanego użytkownika.
+
+	Dane nie mogą być zapisywane bezpośrednio w kontenerze, ponieważ mogły by zostać łatwo utracone jeśli istniała by potrzeba zresetowania kontenerów.
+	Z tego powodu baza danych zapisuje dane do folderu zmapowanego na dysk systemu operacyjnego.
+	Ogranicza to ryzyko utraty danych jednak w środowisku produkcyjnym baza powinna znajdować się w dedykowanym do tego serwerze.
+
+	\begin{figure}[ht]
+		\centering
+			\includegraphics[width=\linewidth]{rys04/docker.png}
+		 \caption{Architektura fizyczna aplikacji}
+		 \label{fig:docker}
+	\end{figure}
+
 \section{Strona internetowa}
 	Do stworzenia strony zdecydowano się użyć frameworku Angular 8.
 	Serwowana będzie ze środowiska uruchomieniowego Node.js.

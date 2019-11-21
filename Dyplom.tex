@@ -473,7 +473,7 @@ SPECJALNOŚĆ: & \@specjalnosc\\
 %%  Metadane dokumentu 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \title{Projekt strony internetowej do recenzji albumów muzycznych w technologii ASP.NET Core oraz grafowej bazie danych}
-\titleShort{Szablon pracy dyplomowej ...}
+\titleShort{Projekt strony internetowej do recenzji albumów muzycznych\dots}
 \titleEN{Design of an internet website for music albums reviewing based on ASP.NET Core and graph database}
 \author{Marcin Kotas}
 \uczelnia{POLITECHNIKA WROCŁAWSKA}
@@ -516,25 +516,11 @@ SPECJALNOŚĆ: & \@specjalnosc\\
 \pagestyle{outer}
 \mbox{}\pdfbookmark[0]{Spis treści}{spisTresci.1}
 \tableofcontents* 
-
-\newpage
-\mbox{}\pdfbookmark[0]{Spis rysunków}{spisRysunkow.1}
-%\addcontentsline{toc}{chapter}{Spis rysunków}
-\listoffigures*
-\begin{flushleft}
-
-\end{flushleft}
 %{%
 %\let\oldnumberline\numberline%
 %\renewcommand{\numberline}{\figurename~\oldnumberline}%
 %\listoffigures%
 %}
-
-
-\newpage
-\mbox{}\pdfbookmark[0]{Spis tabel}{spisTabel.1}
-%\addcontentsline{toc}{chapter}{Spis tabel}
-\listoftables*
 
 \include{skroty} %skróty można sobie pominąć
 \chapterstyle{default}
@@ -552,10 +538,17 @@ SPECJALNOŚĆ: & \@specjalnosc\\
 %       Nazwę przygotowanej biblioteki wpisuje się poniżej bez rozszerzenia 
 %       (w tym przypadku jest to "dokumentacja.bib")
 \bibliography{dokumentacja}
+
+\newpage
+\mbox{}\pdfbookmark[0]{Spis rysunków}{spisRysunkow.1}
+%\addcontentsline{toc}{chapter}{Spis rysunków}
+\listoffigures*
+\begin{flushleft}
+	
+\end{flushleft}
+
 \appendix
 \include{dodatekA}
-\include{dodatekB}
-
 \chapterstyle{noNumbered}
 \phantomsection % sets an anchor
 \addcontentsline{toc}{chapter}{Indeks rzeczowy}
