@@ -259,3 +259,14 @@
 	W tym projekcie zdecydowano się użyć ASP.Net Core 3.0 ze względu na wieloplatformowość (wsparcie dla kontenerów linuksowych),
 	wbudowany system wstrzykiwania zależności (ang.\ \emph{Dependency Injection}), nowoczesny język C\# 8 oraz wysoki stopień zaawansowania bibliotek implementujących GraphQL.
 	Ważnym aspektem była również oficjalna biblioteka \emph{Identity}, która zapewnia bezpieczną obsługę kont użytkowników.
+
+\section{Docker}
+	Docker dostarcza narzędzi do zarządzania zaawansowanymi technologiami kernela linuksowego, między innymi:
+	LXC (ang.\ \emph{LinuX Containers}), cgroups (ang.\ \emph{Control Groups})  i kopiowanie przy zapisie (ang.\ \emph{Copy-on-write})~\cite{docker}.
+	LXC wykorzystuje metody na poziomie kernela do izolowania użytkowników, procesów i sieci.
+	Cgroups implementują zarządzanie zasobami oraz pomiary wykorzystania tych zasobów przez poszczególne procesy wewnątrz kontenerów.
+	Pozwalają na ograniczanie i rozdzielanie dostępu do pamięci, dysku i I/O.
+	Ostatnią ważną częścią Dockera jest system plików copy-on-write.
+	Dzięki temu kontenery wykorzystują wspólną część plików, a dopiero po zapisie tworzona jest kopia pliku unikalna dla danego kontenera.
+	Techniki te pozwoliły na uzyskanie kontenerów, które zachowują się jak maszyny wirtualne przy znacznie lepszej wydajności.
+	W przeciwieństwie do maszyn wirtualnych, kontenery wykorzystują tylko tyle zasobów, ile w danej chwili potrzebują.
