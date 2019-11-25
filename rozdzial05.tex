@@ -176,7 +176,7 @@
 		Uwarunkowane jest to tym, że ustawienia aplikacji nie są przetrzymywane w bazie danych.
 		Możliwe jest to dzięki temu, że biblioteka apollo pozwala na definiowanie lokalnego schematu GraphQL, który rozszerza schemat wykorzystywanego API.
 		W ten sposób uzyskano zarządzanie stanem aplikacji bez wykorzystywania dodatkowych bilbiotek typu \emph{NgRx} czy \emph{Redux}.
-		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float=th]
+		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float]
 			const uri = 'api/graphql';
 
 			@NgModule({
@@ -213,8 +213,75 @@
 			export class GraphQLModule {}
 		\end{lstlisting}
 
+		\subsection*{Wywoływanie zapytań}
+			W projekcie wykorzystano narzędzia \emph{graphql-cli} oraz \emph{graphql-codegen}.
+			Pierwsze pozwala na generowanie lokalnej kopii dostępnego schematu za pomocą komendy \verb|graphql get-schema|.
+			Drugi program generuje typy GraphQL jako interfejsy w języku TypeScript.
+			Dodatkowo, konwertuje wszystkie zapytania oraz mutacje na serwisy angularowe, które mogą zostać wstrzyknięte do każdego komponentu.
+			Dzięki temu tworząc zapytanie do Api, wystarczy napisać zapytanie w języku GraphQL, a narzędzie wygeneruje gotowy serwis.
+			Przykładowo, napisanie następującego zapytania dodawającego nową ocenę albumu:
+			\begin{lstlisting}
+				mutation addRating($rating: RatingInput!) {
+					addRating(rating: $rating) {
+						id
+					}
+				}
+			\end{lstlisting}
+			wygeneruje następujący serwis:
+			\begin{lstlisting}
+				export const AddRatingDocument = gql`
+					mutation addRating($rating: RatingInput!) {
+						addRating(rating: $rating) {
+							id
+						}
+					}
+				`;
+				
+				@Injectable({
+					providedIn: 'root'
+				})
+				export class AddRatingGQL
+					extends Apollo.Mutation<AddRatingMutation, AddRatingMutationVariables> {
+					document = AddRatingDocument;
+				}
+			\end{lstlisting}
+
+			Klasa oznaczona jest angularowym dekoratorem \verb|@Injectable|, dzięki czemu dostępna jest jako serwis w całej aplikacji.
+			Wystarczy więc zaimportować ten serwis w komponencie i wywołać metodę \verb|mutate| zwracającą typ \verb|Observable|:
+			\begin{lstlisting}
+				constructor(
+					private addRating: AddRatingGQL
+				) {}
+
+				rating: RatingInput;
+
+				onSubmit() {
+					this.addRating.mutate({rating: this.rating})
+						.subscribe({
+							error: err => console.log('mutation failed', err),
+							complete: () => this.router.navigate(['/home'])
+						});
+				}
+			\end{lstlisting}
+
+			W aplikacji przyjęto założenia, że obiektów zwracanych przez mutację się nie używa bezpośrednio.
+			Zwrócony obiekt aktualizuje cache, co powoduje, że wszystkie zasubskrybowane obiekty asynchronicznie otrzymują najnowszą wersję.
+			Aby było to możliwe, elementy widoków utrymują subskrypcję przez cały cykl żywotności komponentu.
+			Subskrypcja odbywa się automatycznie dzięki zasosowaniu \emph{async pipe}.
+			\emph{Pipe} to klasa, która pozwalaja na transformację zadanego wejścia i używa się ich bezpośrednio w pliku HTML.
+			Przykładowo, komponent wyświetlający dane albumu przyjmuje jako dane wejściowe typ Observable:
+			\begin{lstlisting}
+				@Input() album$: Observable<Album>;
+			\end{lstlisting}
+			natomiast subskrypcja zarządzana jest w całości przez \emph{async pipe}:
+			\begin{lstlisting}
+				<div *ngIf="album$ | async as album">
+					<h3>Title: {{album.title}}</h3>
+				</div>
+			\end{lstlisting}
+
 		\subsubsection*{Lokalny schemat GraphQL}
-					
+
 			Jak przedstawiono na listingu~\ref{lst:schemaClient}, aby rozszerzyć typ o nowe pola należy użyć komendy \verb|extend|.
 			W tym przypadku dodany został nowy typ \verb|Settings|, który jest użyty w dodatkowym polu domyślnego \verb|Query|.
 			\begin{lstlisting}[label=lst:schemaClient, caption=Lokalny schemat GraphQL, float=th]
@@ -236,8 +303,17 @@
 				
 			\end{lstlisting}
 			
-			
-			Jednak aby możliwe było zapisywanie danych do lokalnej bazy poprzez mutację \verb|updateSettings|,
+			Wczytywanie danych zdefiniowanych w lokalnym schemacie odbywa się tak samo jak przy zewnętrznym Api z jedną różnicą:
+			podczas definiowania zapytania należy użyć dyrektywy \verb|@client|, aby klient wiedział żeby nie odpytywać Api:
+			\begin{lstlisting}
+				query getSettings {
+					settings @client {
+						theme
+					}
+				}
+			\end{lstlisting}
+
+			Aby umożliwić zapisywanie danych do lokalnej bazy poprzez mutację \verb|updateSettings|,
 			trzeba stworzyć \emph{resolver}, czyli funkcję, która określa działanie danego pola.
 			\emph{Resolver} dla tej mutacji przedstawiony został we fragmencie kodu~\ref{lst:resolvers}.
 			Tworzy on nowy obiekt typu \emph{Settings}, który oprócz przekazanych ustawień zawiera pole \verb|__typename|.
