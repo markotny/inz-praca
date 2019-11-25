@@ -148,12 +148,12 @@
 \section{Strona internetowa}
 	\subsection{Zastosowane technologie}
 		Zgodnie z projektem, strona stworzona została w Angularze.
-		Oprócz podstawowych bibliotek Wykorzystane zostały następujące biblioteki:
+		Oprócz podstawowych bibliotek wykorzystane zostały następujące pakiety:
 		\begin{description}
 			\item[apollo] --- wiodący klient GraphQL. Oprócz implementacji protokołu GraphQL,
-			zapewnia również zarządzanie pamięcią podręczną (ang.\ \emph{cache}) oraz stanem aplikacji (ang.\ \emph{state management}).
-			Dzięki temu wszystkie wszystkie odpowiedzi z serwisu Api są zapamiętywane,
-			co pozwala na stworzenie aplikacji działającej szybko nawet przy słabym połączeniu z internetem.
+				zapewnia również zarządzanie pamięcią podręczną (ang.\ \emph{cache}) oraz stanem aplikacji (ang.\ \emph{state management}).
+				Dzięki temu wszystkie wszystkie odpowiedzi z serwisu Api są zapamiętywane,
+				co pozwala na stworzenie aplikacji działającej szybko nawet przy słabym połączeniu z internetem.
 			
 			\item[flex-layout] --- biblioteka stworzona przez zespół tworzący Angulara, umożliwiająca stworzenie responsywnego interfejsu.
 				Dostarcza API, które pozwala na definiowanie struktury elementów HTML zależnej od rozmiaru ekranu.
@@ -162,11 +162,101 @@
 			\item[oidc-client] --- biblioteka implementująca protokół OpenID Connect oraz OAuth2.
 				Zapewnia klasy obsługujące proces logowania oraz zarządzania tokenami.
 
-			\item[rxjs] --- ReactiveX 
-
+			\item[rxjs] --- implementacja ReactiveX na JavaScript.
+				Łączy w sobie najlepsze pomysły ze wzorców projektowych \emph{Observer}, \emph{Iterator} oraz z programowania funkcyjnego~\cite{reactiveX}.
+				Umożliwia programowanie przy pomocy obserwowalnych obiektów aby ułatwić tworzenie asynchronicznych strumieni.
 		\end{description}
 
 	\subsection{Klient GraphQL}
+		Klient Apollo zbudowany został z opcjami przedstawionymi na listingu~\ref{lst:apolloSettings}.
+		Jako adres Api Graphql użyto względnego uri wykorzystującego adres zdefiniowany w odwróconym proxy.
+		W domyślnych ustawieniach zdefiniowano nagłówek autoryzujący pobierający Access Token zalogowanego użytkownika z serwisu \verb|AuthService|.
+		Dzięki temu tożsamosć użytkownika może zostać zweryfikowana po stronie serwera.
+		W tym miejscu zapisywane są również domyślne ustawienia aplikacji w \verb|InMemoryCache|, cache przetrzymywanym w pamięci przeglądarki.
+		Uwarunkowane jest to tym, że ustawienia aplikacji nie są przetrzymywane w bazie danych.
+		Możliwe jest to dzięki temu, że biblioteka apollo pozwala na definiowanie lokalnego schematu GraphQL, który rozszerza schemat wykorzystywanego API.
+		W ten sposób uzyskano zarządzanie stanem aplikacji bez wykorzystywania dodatkowych bilbiotek typu \emph{NgRx} czy \emph{Redux}.
+		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float=th]
+			const uri = 'api/graphql';
+
+			@NgModule({
+				exports: [ApolloModule, HttpLinkModule],
+				providers: [
+					{
+						provide: APOLLO_OPTIONS,
+						useFactory: (httpLink: HttpLink, authService: AuthService) => {
+							const auth = setContext((_operation, _context) => ({
+								headers: {
+									Authorization: authService.authorizationHeaderValue
+								}
+							}));
+			
+							const cache = new InMemoryCache();
+			
+							const defaultSettings = {
+								__typename: 'Settings',
+								theme: 'dark-theme'
+							} as Settings;
+							cache.writeData({data: {settings: defaultSettings}});
+			
+							return {
+								link: ApolloLink.from([auth, httpLink.create({uri})]),
+								cache,
+								resolvers,
+								typeDefs: {}
+							};
+						},
+						deps: [HttpLink, AuthService]
+					}
+				]
+			})
+			export class GraphQLModule {}
+		\end{lstlisting}
+
+		\subsubsection*{Lokalny schemat GraphQL}
+					
+			Jak przedstawiono na listingu~\ref{lst:schemaClient}, aby rozszerzyć typ o nowe pola należy użyć komendy \verb|extend|.
+			W tym przypadku dodany został nowy typ \verb|Settings|, który jest użyty w dodatkowym polu domyślnego \verb|Query|.
+			\begin{lstlisting}[label=lst:schemaClient, caption=Lokalny schemat GraphQL, float=th]
+				extend type Query {
+					settings: Settings
+				}
+				
+				extend type Mutation {
+					updateSettings(input: SettingsInput): Settings
+				}
+				
+				type Settings {
+					theme: String!
+				}
+				
+				input SettingsInput {
+					theme: String
+				}
+				
+			\end{lstlisting}
+			
+			
+			Jednak aby możliwe było zapisywanie danych do lokalnej bazy poprzez mutację \verb|updateSettings|,
+			trzeba stworzyć \emph{resolver}, czyli funkcję, która określa działanie danego pola.
+			\emph{Resolver} dla tej mutacji przedstawiony został we fragmencie kodu~\ref{lst:resolvers}.
+			Tworzy on nowy obiekt typu \emph{Settings}, który oprócz przekazanych ustawień zawiera pole \verb|__typename|.
+			Jest to pole identyfikujące obiekt, dzięki czemu cache nadpisze dane w odpowiednim miejscu.
+			\begin{lstlisting}[label=lst:resolvers, caption=\emph{Resolvers} dla lokalnego cache, float=th]
+				export const resolvers = {
+					Mutation: {
+						updateSettings: (_, {input}, {cache}) => {
+							const settings = {
+								__typename: 'Settings',
+								...input
+							} as Settings;
+							cache.writeData({data: {settings}});
+
+							return null;
+						}
+					}
+				};
+			\end{lstlisting}
 
 	\subsection{Połączenie z Last.fm}
 
