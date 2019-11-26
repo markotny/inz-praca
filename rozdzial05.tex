@@ -247,7 +247,8 @@
 			\end{lstlisting}
 
 			Klasa oznaczona jest angularowym dekoratorem \verb|@Injectable|, dzięki czemu dostępna jest jako serwis w całej aplikacji.
-			Wystarczy więc zaimportować ten serwis w komponencie i wywołać metodę \verb|mutate| zwracającą typ \verb|Observable|:
+			Uzyskano w ten sposób szybki i elastyczny proces korzystania z Api jednocześnie zachowując pełną walidację typów.
+			Serwis wystarczy zaimportować w komponencie i wywołać metodę \verb|mutate| zwracającą typ \verb|Observable|:
 			\begin{lstlisting}
 				constructor(
 					private addRating: AddRatingGQL
@@ -264,14 +265,27 @@
 				}
 			\end{lstlisting}
 
-			W aplikacji przyjęto założenia, że obiektów zwracanych przez mutację się nie używa bezpośrednio.
+			W aplikacji przyjęto założenia, że obiektów zwracanych przez mutację nie używa się bezpośrednio.
 			Zwrócony obiekt aktualizuje cache, co powoduje, że wszystkie zasubskrybowane obiekty asynchronicznie otrzymują najnowszą wersję.
 			Aby było to możliwe, elementy widoków utrymują subskrypcję przez cały cykl żywotności komponentu.
 			Subskrypcja odbywa się automatycznie dzięki zasosowaniu \emph{async pipe}.
 			\emph{Pipe} to klasa, która pozwalaja na transformację zadanego wejścia i używa się ich bezpośrednio w pliku HTML.
-			Przykładowo, komponent wyświetlający dane albumu przyjmuje jako dane wejściowe typ Observable:
+			Przykładowo, komponent wyświetlający dane albumu operuje na strumieniu zwracanym przez funkcję \verb|watch|:
 			\begin{lstlisting}
-				@Input() album$: Observable<Album>;
+				album$: Observable<GetAlbumFullQuery['album']>;
+
+				constructor(
+					private route: ActivatedRoute,
+					private getAlbum: GetAlbumFullGQL
+				) {}
+
+				ngOnInit() {
+					this.album$ = this.route.paramMap.pipe(
+						switchMap((params: ParamMap) =>
+							this.getAlbum.watch({id: params.get('id')}).valueChanges),
+						map(res => res.data.album)
+					);
+				}
 			\end{lstlisting}
 			natomiast subskrypcja zarządzana jest w całości przez \emph{async pipe}:
 			\begin{lstlisting}
@@ -281,7 +295,6 @@
 			\end{lstlisting}
 
 		\subsubsection*{Lokalny schemat GraphQL}
-
 			Jak przedstawiono na listingu~\ref{lst:schemaClient}, aby rozszerzyć typ o nowe pola należy użyć komendy \verb|extend|.
 			W tym przypadku dodany został nowy typ \verb|Settings|, który jest użyty w dodatkowym polu domyślnego \verb|Query|.
 			\begin{lstlisting}[label=lst:schemaClient, caption=Lokalny schemat GraphQL, float=th]
@@ -335,6 +348,35 @@
 			\end{lstlisting}
 
 	\subsection{Połączenie z Last.fm}
+		W serwisie Last.fm zarejestrowano aplikację uzyskując dostęp do pełnego Api.
+		Wykorzystywane jest tylko do pobierania publicznych danych, dlatego użytkownik aplikacji nie musi zakładać konta w serwisie.
+		Z Api można korzystać zarówno w wersji XML, jak i JSON.
+		W projekcie stworzono serwis wykorzystujący wersję JSON, definiując interfejsy dla każdego zapytania.
+		Przykładowe zapytanie wykorzystujące metodę Api \verb|Artist.getTopAlbums| przedstawiono na listingu~\ref{lst:lastfmApi}.
+
+		\begin{lstlisting}[label=lst:lastfmApi, caption=Metoda wykorzystujaca Api Last.fm, float]
+			private readonly baseAddress = 'https://ws.audioscrobbler.com/2.0/';
+			private apiParams = new HttpParams({
+				fromObject: {
+					api_key: this.apiKey,
+					format: 'json',
+					limit: '30'
+				}
+			});
+
+			topByArtistSearch(query: string): Observable<LastFmAlbum[]> {
+				return this.http
+					.get<LastFmApiQueryResults>(this.baseAddress, {
+						params: this.apiParams
+							.set('method', LastFmApiMethod.TopByArtist)
+							.set('artist', query)
+							.set('autocorrect', '1')
+					})
+					.pipe(
+						map(res => res.topalbums.album)
+					);
+			}
+		\end{lstlisting}
 
 	\subsection{Responsive design}
 
