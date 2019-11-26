@@ -156,7 +156,7 @@
 				co pozwala na stworzenie aplikacji działającej szybko nawet przy słabym połączeniu z internetem.
 			
 			\item[flex-layout] --- biblioteka stworzona przez zespół tworzący Angulara, umożliwiająca stworzenie responsywnego interfejsu.
-				Dostarcza API, które pozwala na definiowanie struktury elementów HTML zależnej od rozmiaru ekranu.
+				Dostarcza API wykorzystujące pod spodem media query, które pozwala na definiowanie struktury elementów HTML zależnej od rozmiaru ekranu.
 				Dzięki temu interfejs automatycznie dostosowuje się np. do ekranu telefonu komórkowego.
 			
 			\item[oidc-client] --- biblioteka implementująca protokół OpenID Connect oraz OAuth2.
@@ -379,6 +379,66 @@
 		\end{lstlisting}
 
 	\subsection{Responsive design}
+		Widoki aplikacji testowane były zarówno na ekranie Full HD, jak i o rozmiarze telefonu komórkowego (360px na 740px).
+		Aby zapewnić wymaganą skalowalność interfejsu, elementy widoków zachowują się inaczej w zależności od szerokości ekranu.
+		Atrybuty wykorzystujące responsywne API biblioteki \emph{flex-layout} wykorzystane zostały przy budowie nawigacji przedstawionej na listingu~\ref{lst:flexLayout}.
+		Atrybut \verb|fxHide.gt-xs| chowa cały element jeśli rozmiar ekranu jest większy niż \verb|xs|.
+		W ten sposób otrzymano toolbar, który dla zwykłych ekranów zawiera przyciski nawigacji (Rys.~\ref{fig:gt-xs}),
+		a dla mniejszych przełącza menu boczne (Rys.~\ref{fig:xs}).
+		Znaczenie aliasów wykorzystywanych do definiowania rozmiarów zamieszczono w tabeli~\ref{tab:flexLayoutApi}.
+
+		\begin{lstlisting}[label=lst:flexLayout, caption=Menu nawigacji zależne od rozmiaru ekranu, float]
+			<div fxHide.gt-xs>
+				<button mat-icon-button (click)="onToggleSidenav()">
+					<mat-icon>menu</mat-icon>
+				</button>
+			</div>
+
+			<h1>{{appName}}</h1>
+		
+			<div fxFlex fxLayout="row" fxLayoutGap="10px" fxHide.xs>
+				[...]
+			</div>
+		\end{lstlisting}
+
+		\begin{table}[htb]
+			\centering
+			\caption{Zestawienie aliasów Api flex-layout z odpowiadającymi komendami mediaQuery~\cite{flexLayout}}
+			\label{tab:flexLayoutApi}
+			\begin{tabular}{|ll|} \hline
+				Alias & mediaQuery \\ \hline\hline
+				xs	&	'screen and (max-width: 599px)'	\\
+				sm	&	'screen and (min-width: 600px) and (max-width: 959px)'	\\
+				md	&	'screen and (min-width: 960px) and (max-width: 1279px)'	\\
+				lg	&	'screen and (min-width: 1280px) and (max-width: 1919px)'	\\
+				xl	&	'screen and (min-width: 1920px) and (max-width: 5000px)'	\\
+					&		\\
+				lt-sm	&	'screen and (max-width: 599px)'	\\
+				lt-md	&	'screen and (max-width: 959px)'	\\
+				lt-lg	&	'screen and (max-width: 1279px)'	\\
+				lt-xl	&	'screen and (max-width: 1919px)'	\\
+					&		\\
+				gt-xs	&	'screen and (min-width: 600px)'	\\
+				gt-sm	&	'screen and (min-width: 960px)'	\\
+				gt-md	&	'screen and (min-width: 1280px)'	\\
+				gt-lg	&	'screen and (min-width: 1920px)'	\\
+				\hline
+			\end{tabular}
+		\end{table}
+
+		\begin{figure}[ht]
+			\centering
+				\includegraphics[height=200px]{rys05/gt-xs.png}
+			 \caption{Menu nawigacji dla zwykłych ekranów}
+			 \label{fig:gt-xs}
+		\end{figure}
+
+		\begin{figure}[ht]
+			\centering
+				\includegraphics[height=200px]{rys05/xs.png}
+			 \caption{Wysunięte manu nawigacji dla małych ekranów}
+			 \label{fig:xs}
+		\end{figure}
 
 	\subsection{Przykładowy moduł}
 		dodawanie recenzji
