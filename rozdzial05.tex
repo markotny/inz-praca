@@ -213,7 +213,7 @@
 			export class GraphQLModule {}
 		\end{lstlisting}
 
-		\subsection*{Wywoływanie zapytań}
+		\subsubsection*{Wywoływanie zapytań}
 			W projekcie wykorzystano narzędzia \emph{graphql-cli} oraz \emph{graphql-codegen}.
 			Pierwsze pozwala na generowanie lokalnej kopii dostępnego schematu za pomocą komendy \verb|graphql get-schema|.
 			Drugi program generuje typy GraphQL jako interfejsy w języku TypeScript.
@@ -347,6 +347,10 @@
 				};
 			\end{lstlisting}
 
+	\subsection{Routing}
+		Nawigacja pomiędzy widokami wykorzystuje bibliotekę \verb|angular/router|.
+		Dzięki niej każdy moduł aplikaji posiada zdefiniowany ro
+
 	\subsection{Połączenie z Last.fm}
 		W serwisie Last.fm zarejestrowano aplikację uzyskując dostęp do pełnego Api.
 		Wykorzystywane jest tylko do pobierania publicznych danych, dlatego użytkownik aplikacji nie musi zakładać konta w serwisie.
@@ -401,7 +405,7 @@
 			</div>
 		\end{lstlisting}
 
-		\begin{table}[htb]
+		\begin{table}[ht]
 			\centering
 			\caption{Zestawienie aliasów Api flex-layout z odpowiadającymi komendami mediaQuery~\cite{flexLayout}}
 			\label{tab:flexLayoutApi}
@@ -440,8 +444,98 @@
 			 \label{fig:xs}
 		\end{figure}
 
-	\subsection{Przykładowy moduł}
-		dodawanie recenzji
+	\subsection{Motyw aplikacji}
+		W aplikacji skorzystano z biblioteki \emph{Anuglar Material}, która oprócz gotowych, często używanych komponentów,
+		ułatwia korzystanie z globalnego motywu kolorystycznego.
+		Definiowanie kolorystyki odbywa się za pomoca \emph{mixin}, które określają kolory poszczególnych komponentów.
+		Zaimplementowane zostały dwa motywy, choć dodanie kolejnego wiąże się jedynie ze zdefiniowaniem kolorystyki w jednym miejscu.
+		Domyślny, ciemny motyw zdefiniowany został następująco:
+		\begin{lstlisting}[label=lst:darkTheme]
+			$dark-primary: mat-palette($mat-grey, 700, 300, 900);
+			$dark-accent: mat-palette($mat-blue-grey, 400);
+			$dark-warn: mat-palette($mat-red, 500);
+			
+			$dark-theme: mat-dark-theme($dark-primary, $dark-accent, $dark-warn);
+		\end{lstlisting}
+		Funkcja \verb|mat-palette| zwraca paletę kolorów: pierwszy argument określa bazową paletę koloru, a kolejne trzy odpowiednio domyślny, jasny i ciemniejszy odcień.
+		Metoda \verb|mat-dark-theme| oraz analogiczna \verb|mat-light-theme| oprócz przekazanych palet kolorów definiują dodatkowo domyślne kolory tła.
+		Na podstawie tych mixin-ów stworzone zostały dwa style css:
+		\begin{lstlisting}			
+			@mixin custom-components-theme($theme) {
+				@include header-component-theme($theme);
+				@include sidenav-component-theme($theme);
+				@include album-grid-component-theme($theme);
+				@include album-search-component-theme($theme);
+			}
+			
+			.light-theme {
+				@include angular-material-theme($light-theme);
+				@include custom-components-theme($light-theme);
+			}
+			
+			.dark-theme {
+				@include angular-material-theme($dark-theme);
+				@include custom-components-theme($dark-theme);
+			}	
+		\end{lstlisting}
+
+		Aby wykorzystać kolory motywu we własnych komponentach (nie zawartych w \verb|angular-material-theme()|),
+		należy stworzyć nowy \emph{mixin}, który może pobierać ustawione kolory za pomocą funkcji \verb|map-get|.
+		Przykładowy \emph{mixin}, który wykorzystuje tą metodę jest następujący:
+		\begin{lstlisting}
+			@mixin sidenav-component-theme($theme) {
+				$primary: map-get($theme, primary);
+				$accent: map-get($theme, accent);
+			
+				mat-sidenav {
+					button, .mat-list-item {
+						&.active {
+							color: mat-color($accent, default-contrast);
+							background-color: mat-color($accent);
+			
+							&:hover {
+								background-color: mat-color($accent, darker);
+							}
+						}
+					}
+				}
+			}			
+		\end{lstlisting}
+
+		Przełączanie pomiędzy globalnymi stylami odbywa się w głównym komponencie aplikacji \verb|app.component|,
+		przedstawionym na listingu~\ref{lst:appComponent}.
+		Odpowiednia klasa aktyowowana jest na podstawie ustawień użytkownika.
+
+		\begin{lstlisting}[label=lst:appComponent, caption=Główny szablon HTML aplikacji, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+			<div [class]="'theme-wrapper mat-typography ' + (settings$ | async)?.theme">
+
+				<app-header class="toolbar" (sidenavToggle)="mainSidenav.toggle()">
+				</app-header>
+			
+				<mat-sidenav-container fxFlex fxFlex.xs="noshrink">
+					<mat-sidenav #mainSidenav role="navigation" mode="over"
+						fixedInViewport="true" fixedTopGap="56">
+						<app-sidenav (sidenavClose)="mainSidenav.close()"></app-sidenav>
+					</mat-sidenav>
+			
+					<mat-sidenav-content>
+						<main role="main" class="wrapper" fxLayout="column">
+			
+							<div class="content" fxFlex="noshrink">
+								<router-outlet></router-outlet>
+							</div>
+			
+							<div class="footer" fxFlex="none">
+								Marcin Kotas, 2019
+							</div>
+			
+						</main>
+					</mat-sidenav-content>
+				</mat-sidenav-container>
+			</div>
+			
+		\end{lstlisting}
+		
 
 \section{GraphQL API}
 	\subsection{Zastosowane technologie}
