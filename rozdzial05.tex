@@ -653,18 +653,161 @@
 \section{GraphQL API}
 	\subsection{Zastosowane technologie}
 		\begin{description}
-			\item[Hot Chocolate] 
-			\item[Autofac] 
-			\item[Entity Framework Core] 
-			\item[Namotion.Reflection] 
-			\item[Serilog] 
+			\item[Hot Chocolate] --- platforma pozwalająca zbudować serwer GraphQL na infrastrukturze .NET.
+				Umożliwia definiowanie schematu GraphQL zarówno za pomocą języka SDL (ang.\ \emph{Schema Definition Language}),
+				jak i języka C\# poprzez podejście code-first. 
+			\item[Autofac] --- biblioteka dostarczająca zaawansowany kontener służący do inwersji kontroli (IoC - \emph{Inversion of Control}).
+				Pozwala na szczegółowe lub automatyczne definiowanie interfejsów i ich implementacji.
+			\item[Entity Framework Core] --- narzędzie służące jako ORM (ang.\ \emph{Object-Relational Mapper}).
+				Automatyzuje dostęp do bazy danych poprzez mapowanie encji bazodanowych na obiekty POCO (ang.\ \emph{Plain Old CLR Object}).
+				Dodatkowo umożliwia generowanie bazy danych na podstawie modeli, tworząc migrację po każdej zmianie na istniejącej bazie.
+			\item[Serilog] --- służy do logowania informacji diagnostycznych zarówno do konsoli, jak i do plików.
+				Daje możliwość zaawansowanej konfiguracji formatowania logów oraz minimalnego logowanego stopnia.
 		\end{description}
 
 	\subsection{Warstwa Api}
+		W tej warstwie skonfigurowany został serwer GraphQL.
+		Zdecydowano sie definiować schemat metodą code-first, aby wykorzystać modele warstwy domenowej jako bazy typów.
+
+		\subsubsection*{Generowanie typów}
+			Biblioteka \emph{Hot Chocolate} umożliwia automatyczne generowanie typów z klas.
+			Dodatkowo, w projekcie załączono opcjonalną funkcjonalność \emph{Nullable reference types} wprowadzoną w C\#8.0 i zaimplementowaną w .NET Core 3.0.
+			Sprawia ona, że typy referencyjne domyślnie oznaczane są jako non-null, czyli nigdy nie będą równe null.
+			Aby oznaczyć pole jako dopuszczające wartość null należy oznaczyć je znakiem zapytania.
+			Jest to działanie analogiczne do typów wartościowych i pomaga zapobiegać nieobsłużonym wyjątkom \emph{Null Reference Exception}.
+			W użytej wersji \emph{Hot Chocolate} (10.1.1), nie są one jednak interpretowane --- wszystkie typy referencyjne oznaczane są jako obowiązkowe pola.
+			Biblioteka ta pozwala jednak na rozszerzanie domyślnych konwencji, co postanowiono wykorzystać do zaimplementowania automatycznego oznaczania typów referencyjnych.
+			Skorzystano przy tym z biblioteki \emph{Namotion.Reflection}, która rozszerza refleksję o metody sprawdzające, czy w danym kontekście typ może przyjmować null, czy nie.
+			W ten sposób powstała klasa \verb|TypeInspector|, wprowadzająca następujące modyfikacje do automatycznego generowania typów:
+			\begin{itemize}
+				\item klucze obce w modelach nie są tłumaczone na pola typów graphql, ponieważ wykorzystywane są jedynie wirtualne pola nawigacyjne (ang.\ \emph{navigation property}),
+				\item pola z referencyjnymi typami są poprawnie oznaczane jako opcjonalne lub obowiązkowe.
+			\end{itemize}
+
+			Jeśli wymagana jest dodatkowa konfiguracja to tworzona jest funkcją \verb|Configure|.
+			Dla typu \verb|AlbumType| nazwa pola \verb|MusicBrainzId| ustawiana jest na \verb|mbid|, gdyż pod taką nazwą pobierane jest z Api Last.fm:
+			\begin{lstlisting}
+				public class AlbumType : ObjectType<Album>
+				{
+					protected override void Configure(
+						IObjectTypeDescriptor<Album> descriptor)
+					{
+						descriptor.Field(t => t.MusicBrainzId)
+							.Type<StringType>()
+							.Name("mbid");
+					}
+				}
+			\end{lstlisting}
+
+		\subsubsection*{Generowanie odpowiedzi}
+			Klasa \verb|Query| zawiera metody, które zwracają odpowiednie wartości dla zapytań.
+			Listing~\ref{lst:queryClr} przedstawia dwie takie metody.
+			\verb|GetAlbum| to prosta metoda zwracająca album o danym id z repozytorium, którego implementacja znajduje się w warstwie Infrastructure.
+			\verb|SearchArtists| wyszukuje artystów wykorzystując metodę \verb|Search|, która jako argument przyjmuje obiekt typu \emph{Expression<Func<T, bool>>}.
+			\emph{Expression tree} w przeciwieństwie do delegatów typu \emph{Func<>} nie kompiluje się do IL (ang.\ \emph{Intermediate Language}),
+			dzięki czemu Entity Framework może przetłumaczyć wyrażenie na zapytanie SQL.
+			C\# automatycznie tłumaczy anonimowe funkcje lambda na wyrażenie, jednak nie wszystkie metody są tłumaczone.
+			Z tego powodu podczas porównania nazwy artysty z zapytaniem na obu argumentach wykonywana jest funkcja \verb|ToLower()|,
+			zamiast użycia \verb|StringComparison.OrdinalIgnoreCase|.
+
+			\begin{lstlisting}[label=lst:queryClr, caption=Fragment klasy Query, float]
+				private readonly IRepository _repository;
+		
+				public Query(IRepository repository)
+				{
+					_repository = repository;
+				}
+
+				public Album? GetAlbum(Guid id) => _repository.GetById<Album>(id);
+
+				public IEnumerable<Artist> SearchArtists(string? mbid, string name)
+				{
+					List<Artist>? results = null;
+					if (!string.IsNullOrEmpty(mbid))
+						results = _repository.Search<Artist>(artist =>
+							artist.MusicBrainzId == mbid);
+		
+					return results?.Count > 0
+						? results
+						: _repository.Search<Artist>(artist =>
+							artist.Name.ToLower().Contains(name.ToLower()));
+				}
+			\end{lstlisting}
+
+		\subsubsection*{Middleware}
+			Podczas przetwarzania niektórych zapytań wymagane są dodatkowe akcje.
+			Wykorzystywane są do tego \emph{middleware}.
+			Przykładowym, wbudowanym middleware jest dyrektywa \emph{authorize}.
+			Sprawdza ona, czy zalogowany użytkownik posiada prawa do wywołania odpowiedniego pola wykorzystując wbudowany system Identity.
+			
+			W projekcie stworzony został nowy middleware (Listing~\ref{lst:middleware}), który dodaje do bazy Api zalogowanego użytkownika, aby można było powiązać z nim dodawane occeny.
+			Serwis pobiera id zalogowanego użytkownika z kontekstu, a następnie sprawdza, czy taki użytkownik już istnieje.
+			Jeśli nie, to wykorzystuje \verb|OpenIdService| (opisany w rozdziale~\todo{odnieść sie do rozdziału o openid}),
+			aby pobrać nazwę użytkownika z serwera uwierzytelniającego.
+			Następnie dane te zapisuje w bazie za pomocą repozytorium.
+			Na końcu przekazuje zapytanie do dalszego przetwarzania poprzez \verb|_next(context)|.
+			Tak napisaną klasę można zarejestrować jako middleware podczas konfiguracji dowolnego typu, np.\ mutacji:
+			\begin{lstlisting}
+				descriptor.Field(t => t.AddRating(default!, default!))
+					.Use<RecordUserMiddleware>()
+					.Argument("rating", a => a.Type<NonNullType<RatingInputType>>())
+					.Type<NonNullType<AlbumType>>();
+			\end{lstlisting}
+
+			\begin{lstlisting}[label=lst:middleware, caption=Middleware zapisujące użytkowników, float]
+				public class RecordUserMiddleware
+				{
+					private readonly FieldDelegate _next;
+					private readonly OpenIdService _openIdService;
+			
+					public RecordUserMiddleware(
+						FieldDelegate next,
+						OpenIdService openIdService)
+					{
+						_next = next;
+						_openIdService = openIdService;
+					}
+			
+					public async Task InvokeAsync(
+						IMiddlewareContext context,
+						IRepository repository,
+						IHttpContextAccessor httpContextAccessor)
+					{
+						var id = httpContextAccessor.HttpContext.User
+							.FindFirstValue(ClaimTypes.NameIdentifier);
+			
+						var user = repository.GetById<User>(new Guid(id));
+			
+						if (user == null)
+						{
+							var accessToken = await httpContextAccessor.HttpContext
+								.GetTokenAsync("access_token");
+							var userInfo = await _openIdService.GetUserInfo(accessToken);
+			
+							repository.Add(new User
+							{
+								Id = userInfo.Sub,
+								Username = userInfo.Name
+							});
+						}
+			
+						await _next(context);
+					}
+				}
+			\end{lstlisting}
 
 	\subsection{Warstwa domenowa}
+		
 
 	\subsection{Warstwa infrastrukturalna}
+
+		Takie zapytanie tłumaczone jest przez bibliotekę \emph{Npgsql} na następujące zapytanie do bazy PostgreSQL:
+		\begin{lstlisting}
+			Executing DbCommand [Parameters=[@__ToLower_0='name'], CommandType='Text', CommandTimeout='30']
+			SELECT a."Id", a."MusicBrainzId", a."Name"
+			FROM "Artists" AS a
+			WHERE STRPOS(LOWER(a."Name"), @__ToLower_0) > 0
+		\end{lstlisting}
 	
 \section{Serwis uwierzytelniający}
 	\subsection{Zastosowane technologie}
