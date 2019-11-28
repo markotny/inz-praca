@@ -347,9 +347,103 @@
 				};
 			\end{lstlisting}
 
-	\subsection{Routing}
+	\subsection{Routing i nawigacja}
 		Nawigacja pomiędzy widokami wykorzystuje bibliotekę \verb|angular/router|.
-		Dzięki niej każdy moduł aplikaji posiada zdefiniowany ro
+		Przechwytuje ona nawigację przeglądarki i zamiast przeładowywać całą stronę, ładuje jedynie odpowiednie komponenty.
+		Każdy moduł posiada swoją tablicę tras odpowiadających komponentom, które mają zostać załadowane dla danego adresu.
+		W routingu głównego modułu \verb|app-routing.module| (Listing~\ref{lst:routing})
+		zdefiniowane zostały trasy wywołań zwrotnych (ang.\ \emph{callback}) serwisu uwierzytelniającego oraz trasy do odpowiednich modułów.
+		Moduły ładowane są dynamicznie dopiero po przekierowaniu w odpowiedni adres za pomocą metody \verb|loadChildren|.
+		Podczas mapowania adresu router wyszukuje pierwszego dopasowania.
+		Bazowy adres (np. \emph{localhost}) przkierowywany jest na świeżkę \emph{home}.
+		Następnie adres dopasowywany jest do któregoś z callback-ów lub modułów.
+		Jeśli żaden nie pasuje, to znaczy że adres jest nieprawidłowy i jest łapany przez domyślną trasę (\verb|**|), która przekierowuje na \emph{home}.
+		Możliwe jest również przekazanie danych do komponentu poprzez pole \verb|data|, dzięki czemu można wykorzystywać ten sam komponent dla różnych zadań.
+		Wykorzystano to przy callback-ach serwisu uwierzytelniającego, który wykorzystuje ten sam komponent dla wszystkich akcji.
+		Dane te można odczytać w komponencie wykorzystując obiekt \verb|ActivatedRoute|:
+		\begin{lstlisting}
+			constructor(
+				private authService: AuthService,
+				private router: Router,
+				private route: ActivatedRoute
+			) {}
+		
+			async ngOnInit() {
+				this.route.data.subscribe(async data => {
+					switch (data.action) {
+						case AuthAction.Login:
+							await this.authService.completeAuthentication();
+							this.router.navigate(['/home']);
+							break;
+						case ...
+		\end{lstlisting}
+
+		Po zarejestrowaniu komponentów należy jeszcze oznaczyć na szablonie HTML miejsce, w którym router będzie wstawiać załadowane komponenty.
+		W projekcie uczyniono to w głównym komponencie \verb|app.component|, jak pokazane zostało na listingu~\ref{lst:appComponent}.
+		Ujście routera \verb|<router-outlet>| (linia 16) zagnieżdżono w \verb|mat-sidenav-content|,
+		dzięki czemu nagłówek, menu boczne oraz stopka obecne są na każdym widoku.
+		Zmienia się jedynie zawartość wstawiana przez router.
+
+		\begin{lstlisting}[label=lst:routing, caption=Trasy głównego modułu]
+			const routes: Routes = [
+				{
+					path: '',
+					redirectTo: 'home',
+					pathMatch: 'full'
+				},
+				{
+					path: 'login-callback',
+					component: AuthCallbackComponent,
+					data: {action: AuthAction.Login}
+				},
+				{
+					path: 'silent-refresh',
+					component: AuthCallbackComponent,
+					data: {action: AuthAction.SilentRefresh}
+				},
+				{
+					path: 'home',
+					loadChildren: () => import('./home/home.module')
+						.then(m => m.HomeModule)
+				},
+				{
+					path: 'album',
+					loadChildren: () => import('./modules/album/album.module')
+						.then(m => m.AlbumModule)
+				},
+				[...]
+				{path: '**', redirectTo: 'home', pathMatch: 'full'}
+			];
+		\end{lstlisting}
+
+		\begin{lstlisting}[label=lst:appComponent, caption=Główny szablon HTML aplikacji, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+			<div [class]="'theme-wrapper mat-typography '+(settings$ | async)?.theme">
+
+				<app-header class="toolbar" (sidenavToggle)="mainSidenav.toggle()">
+				</app-header>
+			
+				<mat-sidenav-container fxFlex fxFlex.xs="noshrink">
+					<mat-sidenav #mainSidenav role="navigation" mode="over"
+						fixedInViewport="true" fixedTopGap="56">
+						<app-sidenav (sidenavClose)="mainSidenav.close()"></app-sidenav>
+					</mat-sidenav>
+			
+					<mat-sidenav-content>
+						<main role="main" class="wrapper" fxLayout="column">
+			
+							<div class="content" fxFlex="noshrink">
+								<router-outlet></router-outlet>
+							</div>
+			
+							<div class="footer" fxFlex="none">
+								Marcin Kotas, 2019
+							</div>
+			
+						</main>
+					</mat-sidenav-content>
+				</mat-sidenav-container>
+			</div>	
+		\end{lstlisting}
 
 	\subsection{Połączenie z Last.fm}
 		W serwisie Last.fm zarejestrowano aplikację uzyskując dostęp do pełnego Api.
@@ -479,7 +573,7 @@
 			}	
 		\end{lstlisting}
 
-		Aby wykorzystać kolory motywu we własnych komponentach (nie zawartych w \verb|angular-material-theme()|),
+		Aby wykorzystać kolory motywu we własnych komponentach (nie zawartych w \verb|angular-material-theme|),
 		należy stworzyć nowy \emph{mixin}, który może pobierać ustawione kolory za pomocą funkcji \verb|map-get|.
 		Przykładowy \emph{mixin}, który wykorzystuje tą metodę jest następujący:
 		\begin{lstlisting}
@@ -503,39 +597,8 @@
 		\end{lstlisting}
 
 		Przełączanie pomiędzy globalnymi stylami odbywa się w głównym komponencie aplikacji \verb|app.component|,
-		przedstawionym na listingu~\ref{lst:appComponent}.
-		Odpowiednia klasa aktyowowana jest na podstawie ustawień użytkownika.
-
-		\begin{lstlisting}[label=lst:appComponent, caption=Główny szablon HTML aplikacji, numbers=left, numberstyle=\tiny, stepnumber=2, float]
-			<div [class]="'theme-wrapper mat-typography ' + (settings$ | async)?.theme">
-
-				<app-header class="toolbar" (sidenavToggle)="mainSidenav.toggle()">
-				</app-header>
-			
-				<mat-sidenav-container fxFlex fxFlex.xs="noshrink">
-					<mat-sidenav #mainSidenav role="navigation" mode="over"
-						fixedInViewport="true" fixedTopGap="56">
-						<app-sidenav (sidenavClose)="mainSidenav.close()"></app-sidenav>
-					</mat-sidenav>
-			
-					<mat-sidenav-content>
-						<main role="main" class="wrapper" fxLayout="column">
-			
-							<div class="content" fxFlex="noshrink">
-								<router-outlet></router-outlet>
-							</div>
-			
-							<div class="footer" fxFlex="none">
-								Marcin Kotas, 2019
-							</div>
-			
-						</main>
-					</mat-sidenav-content>
-				</mat-sidenav-container>
-			</div>
-			
-		\end{lstlisting}
-		
+		przedstawionym na listingu~\ref{lst:appComponent}, w pierwszej linijce.
+		Odpowiednia klasa aktywowana jest na podstawie wartości \verb|theme| ustawień użytkownika.
 
 \section{GraphQL API}
 	\subsection{Zastosowane technologie}
