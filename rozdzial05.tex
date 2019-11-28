@@ -270,7 +270,21 @@
 			Aby było to możliwe, elementy widoków utrymują subskrypcję przez cały cykl żywotności komponentu.
 			Subskrypcja odbywa się automatycznie dzięki zasosowaniu \emph{async pipe}.
 			\emph{Pipe} to klasa, która pozwalaja na transformację zadanego wejścia i używa się ich bezpośrednio w pliku HTML.
-			Przykładowo, komponent wyświetlający dane albumu operuje na strumieniu zwracanym przez funkcję \verb|watch|:
+			
+			Przykładowo, komponent wyświetlający dane albumu w pierwszej kolejności pobiera id albumu z parametrów ścieżki,
+			a następnie pobiera dane albumu o tym id.
+			Odbywa się to przy pomocy \emph{rxjs pipe}, czyli metody pozwalającej łączyć wiele operatorów przetwarzających dane w strumieniu.
+			W tym komponencie wykorzystano dwa operatory:
+			\begin{enumerate}
+				\item \textbf{switchMap}: operator, który przyjmuje dane i zwraca typ Observable.
+					Służy do zmiany źródła strumienia danych poprzez subskrypcję pierwszego strumienia i wykorzystanie wyniku w tworzeniu drugiego strumienia.
+					W tym przypadku przyjmuje mapę parametrów ścieżki, znajduje id albumu i zwraca strumień obserwujący zapytanie GraphQL \verb|getAlbum.watch|.
+
+				\item \textbf{map}: operator służący do modyfikacji danych.
+					Najczęściej wykorzystywany do zwracania nowych typów obiektów na podstawie danych wejściowych lub ich fragmentów.
+					Użyty został w celu bezpośredniego zwrócenia zagnieżdżonych danych.
+			\end{enumerate}
+			Powstały \emph{pipe} nie pobiera od razu danych, lecz definuje jedynie sposob ich przetwarzania:
 			\begin{lstlisting}
 				album$: Observable<GetAlbumFullQuery['album']>;
 
@@ -293,7 +307,7 @@
 					<h3>Title: {{album.title}}</h3>
 				</div>
 			\end{lstlisting}
-
+			
 		\subsubsection*{Lokalny schemat GraphQL}
 			Jak przedstawiono na listingu~\ref{lst:schemaClient}, aby rozszerzyć typ o nowe pola należy użyć komendy \verb|extend|.
 			W tym przypadku dodany został nowy typ \verb|Settings|, który jest użyty w dodatkowym polu domyślnego \verb|Query|.
@@ -358,6 +372,42 @@
 		Bazowy adres (np. \emph{localhost}) przkierowywany jest na świeżkę \emph{home}.
 		Następnie adres dopasowywany jest do któregoś z callback-ów lub modułów.
 		Jeśli żaden nie pasuje, to znaczy że adres jest nieprawidłowy i jest łapany przez domyślną trasę (\verb|**|), która przekierowuje na \emph{home}.
+
+		Zabezpieczanie dostepu do komponentów przed nieautoryzowanymi użytkownikami odbywa się za pomocą dyrektywy \verb|canActivate|:
+		\begin{lstlisting}
+			{
+				path: 'add',
+				component: AddReviewComponent,
+				canActivate: [AuthGuard],
+			}
+		\end{lstlisting}
+		\verb|AuthGuard| to serwis, który deklaruje funkcję \verb|canActivate| zwracającą typ boolean informującą o tym, czy użytkownik spełnia wymagania dostępu.
+		Implementacjw w projekcie wykorzystuje serwis uwierzytelniający aby sprawdzić, czy użytkownik jest zalogowany.
+		Jeśli jest zalogowany to zwraca \verb|true|, w przeciwnym przypadku następuje przekierowanie do strony logowania:
+		\begin{lstlisting}
+			canActivate(
+				route: ActivatedRouteSnapshot,
+				state: RouterStateSnapshot
+			): boolean {
+				if (this.authService.isAuthenticated()) {
+					return true;
+				}
+				this.router.navigate(['/login'], {
+					queryParams: {redirect: state.url},
+					replaceUrl: true
+				});
+				return false;
+			}
+		\end{lstlisting}
+
+		Dane do komponentów można przekazywać bezpośrednio w adresie poprzez oznaczanie zmiennych dwukropkiem:
+		\begin{lstlisting}
+			{
+				path: ':id',
+				component: AlbumComponent
+			}
+		\end{lstlisting}
+		Poprawna ścieżka to np. \verb|/album/3|, gdzie \verb|:id| jest równe 3.
 		Możliwe jest również przekazanie danych do komponentu poprzez pole \verb|data|, dzięki czemu można wykorzystywać ten sam komponent dla różnych zadań.
 		Wykorzystano to przy callback-ach serwisu uwierzytelniającego, który wykorzystuje ten sam komponent dla wszystkich akcji.
 		Dane te można odczytać w komponencie wykorzystując obiekt \verb|ActivatedRoute|:
