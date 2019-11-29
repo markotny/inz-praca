@@ -724,7 +724,7 @@
 				{
 					List<Artist>? results = null;
 					if (!string.IsNullOrEmpty(mbid))
-						results = _repository.Search<Artist>(artist =>
+						results = _repository.List<Artist>(artist =>
 							artist.MusicBrainzId == mbid);
 		
 					return results?.Count > 0
@@ -797,17 +797,124 @@
 			\end{lstlisting}
 
 	\subsection{Warstwa domenowa}
-		
+		Warstwa domenowa zawiera logikę biznesową aplikacji: encje, serwisy i interfejsy.
+		Interfejsy definiują abstrakcje operacji, które wykonywane będą w warstwie infrastruktury.
+		Są to dostęp do systemu plików, połączenie z bazą danych czy zapytania HTTP.
 
-	\subsection{Warstwa infrastrukturalna}
-
-		Takie zapytanie tłumaczone jest przez bibliotekę \emph{Npgsql} na następujące zapytanie do bazy PostgreSQL:
+		Encje posiadają zadeklarowane zarówno klucze obce, jak i wirtualne ścieżki.
+		Wirtualne ścieżki wykorzystywane są do zagnieżdżania zapytań graphql, natomiast klucze obce podczas dodawania nowych wpisów do bazy.
+		W projekcie zaimplementowano wzorzec projektowy \emph{Repository}.
+		Stworzono w tym celu generyczny interfejs definiujący repozytorium:
 		\begin{lstlisting}
-			Executing DbCommand [Parameters=[@__ToLower_0='name'], CommandType='Text', CommandTimeout='30']
-			SELECT a."Id", a."MusicBrainzId", a."Name"
-			FROM "Artists" AS a
-			WHERE STRPOS(LOWER(a."Name"), @__ToLower_0) > 0
+			public interface IRepository
+			{
+				T? GetById<T>(Guid id) where T : BaseEntity;
+				List<T> List<T>() where T : BaseEntity;
+				List<T> List<T>(Expression<Func<T, bool>> filter) where T : BaseEntity;
+				T Add<T>(T entity) where T : BaseEntity;
+				T Update<T>(T entity) where T : BaseEntity;
+				void Delete<T>(T entity) where T : BaseEntity;
+			}
 		\end{lstlisting}
+		Przyjmowany typ \verb|T| musi dziedziczyć po \verb|BaseEntity|, co zapewnia obecność pola \verb|Id| typu Guid.
+		Implementacja repozytorum opisana została w następnym rozdziale.
+
+	\subsection{Warstwa infrastruktury}
+		W tej warstwie znajdują się implementacje dostępu do danych oraz rejestracja zależności aplikacji.
+
+		\subsubsection*{Dostęp do danych}
+			Jest to jedyna warstwa aplikacji, która deklaruje jako zależność bibliotekę \emph{Entity Framework Core}.
+			Klasa \verb|EfRepository| (Listing~\ref{lst:repository}) implementuje interfejs zdefiniowany w warstwie Core wykorzystując EF Core.
+			Ona również jest generyczna, ponieważ operacje na wszystkich encjach są analogiczne.
+			Bardziej skomplikowane zapytania wymusiły by stworzenie nowego interfejsu, lub wyizolowanie funkcji \verb|_dbContext.SaveChanges| jako osobnej metody.
+			Wtedy możliwe było by przeprowadzenie wielu operacji w ramach tej samej transakcji.
+			W obecnej implementaji każde zapytanie modyfikujące bazę zamyka transakcję.
+			W tej klasie umieszczane są również inne transformacje zapytań wykonywane za każdym razem,
+			np.\ pomijanie wpisów, które oznaczone zostały jako nieaktywne (ang.\ \emph{soft delete}).
+
+			\begin{lstlisting}[label=lst:repository, caption=Implementacja repozytorium, float]
+				public class EfRepository : IRepository
+				{
+					private readonly AppDbContext _dbContext;
+			
+					public EfRepository(AppDbContext dbContext)
+					{
+						_dbContext = dbContext;
+					}
+					public T? GetById<T>(Guid id) where T : BaseEntity
+					{
+						return _dbContext.Set<T>().SingleOrDefault(e => e.Id == id);
+					}
+					public List<T> List<T>() where T : BaseEntity
+					{
+						return _dbContext.Set<T>().ToList();
+					}
+					public List<T> List<T>(Expression<Func<T, bool>> filter)
+							where T : BaseEntity
+					{
+						return _dbContext.Set<T>().Where(filter).ToList();
+					}
+					public T Add<T>(T entity) where T : BaseEntity
+					{
+						_dbContext.Set<T>().Add(entity);
+						_dbContext.SaveChanges();
+			
+						return entity;
+					}
+					public T Update<T>(T entity) where T : BaseEntity
+					{
+						_dbContext.Entry(entity).State = EntityState.Modified;
+						_dbContext.SaveChanges();
+			
+						return entity;
+					}
+					public void Delete<T>(T entity) where T : BaseEntity
+					{
+						_dbContext.Set<T>().Remove(entity);
+						_dbContext.SaveChanges();
+					}
+				}
+			\end{lstlisting}
+			
+			Do tłumaczenia zapytań na język SQL kompatybilny z bazą PostgreSQL wykorzystano bibliotekę \emph{Npgsql}.
+			Przykładowo, wywołanie z listingu~\ref{lst:queryClr} wyszukujące po nazwie artysty zostanie przetłymaczone na zapytanie wykorzystuje motodę \verb|STRPOS|,
+			znajdującą pozycję ciągu znaków w tekście, oraz \verb|LOWER|, zmieniającą znaki w tekście na małe litery:
+			\begin{lstlisting}
+				Executing DbCommand [Parameters=[@__ToLower_0='name']
+				SELECT a."Id", a."MusicBrainzId", a."Name"
+				FROM "Artists" AS a
+				WHERE STRPOS(LOWER(a."Name"), @__ToLower_0) > 0
+			\end{lstlisting}
+
+		\subsubsection*{Rejestracja zależności}
+			Rejestracja zależności odbywa się przy pomocy narzędzia \emph{Autofac}.
+			Metoda \verb|InitializeApi|, wywoływana na końcu metody \verb|ConfigureServices| klasy \verb|Startup| warstwy Api,
+			W pierwszej kolejności 
+
+			\begin{lstlisting}[label=lst:autofac, caption=Rejestracja zależności wykorzystująca Autofac, float]
+				public static IServiceProvider InitializeApi(
+					Assembly webAssembly, IServiceCollection services) =>
+					new AutofacServiceProvider(BaseAutofacInitialization(setupAction =>
+					{
+						setupAction.Populate(services);
+						setupAction.RegisterAssemblyTypes(webAssembly)
+							.AsImplementedInterfaces();
+					}));
+	
+				public static IContainer BaseAutofacInitialization(
+					Action<ContainerBuilder> setupAction = null!)
+				{
+					var builder = new ContainerBuilder();
+		
+					var coreAssembly = Assembly.GetAssembly(typeof(BaseEntity));
+					var infrastructureAssembly = Assembly.GetAssembly(typeof(EfRepository));
+					builder.RegisterAssemblyTypes(coreAssembly, infrastructureAssembly)
+						.AsImplementedInterfaces();
+		
+					setupAction?.Invoke(builder);
+					return builder.Build();
+				}
+			\end{lstlisting}
 	
 \section{Serwis uwierzytelniający}
 	\subsection{Zastosowane technologie}
