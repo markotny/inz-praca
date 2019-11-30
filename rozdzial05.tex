@@ -651,19 +651,18 @@
 		Odpowiednia klasa aktywowana jest na podstawie wartości \verb|theme| ustawień użytkownika.
 
 \section{GraphQL API}
-	\subsection{Zastosowane technologie}
-		\begin{description}
-			\item[Hot Chocolate] --- platforma pozwalająca zbudować serwer GraphQL na infrastrukturze .NET.
-				Umożliwia definiowanie schematu GraphQL zarówno za pomocą języka SDL (ang.\ \emph{Schema Definition Language}),
-				jak i języka C\# poprzez podejście code-first. 
-			\item[Autofac] --- biblioteka dostarczająca zaawansowany kontener służący do inwersji kontroli (IoC - \emph{Inversion of Control}).
-				Pozwala na szczegółowe lub automatyczne definiowanie interfejsów i ich implementacji.
-			\item[Entity Framework Core] --- narzędzie służące jako ORM (ang.\ \emph{Object-Relational Mapper}).
-				Automatyzuje dostęp do bazy danych poprzez mapowanie encji bazodanowych na obiekty POCO (ang.\ \emph{Plain Old CLR Object}).
-				Dodatkowo umożliwia generowanie bazy danych na podstawie modeli, tworząc migrację po każdej zmianie na istniejącej bazie.
-			\item[Serilog] --- służy do logowania informacji diagnostycznych zarówno do konsoli, jak i do plików.
-				Daje możliwość zaawansowanej konfiguracji formatowania logów oraz minimalnego logowanego stopnia.
-		\end{description}
+	Api stworzone zostało na platformie .Net Core 3.0.
+	Wykorzystane zostały następujące technologie:
+	\begin{description}
+		\item[Hot Chocolate] --- platforma pozwalająca zbudować serwer GraphQL na infrastrukturze .NET.
+			Umożliwia definiowanie schematu GraphQL zarówno za pomocą języka SDL (ang.\ \emph{Schema Definition Language}),
+			jak i języka C\# poprzez podejście code-first. 
+		\item[Autofac] --- biblioteka dostarczająca zaawansowany kontener służący do inwersji kontroli (IoC - \emph{Inversion of Control}).
+			Pozwala na szczegółowe lub automatyczne definiowanie interfejsów i ich implementacji.
+		\item[Entity Framework Core] --- narzędzie służące jako ORM (ang.\ \emph{Object-Relational Mapper}).
+			Automatyzuje dostęp do bazy danych poprzez mapowanie encji bazodanowych na obiekty POCO (ang.\ \emph{Plain Old CLR Object}).
+			Dodatkowo umożliwia generowanie bazy danych na podstawie modeli, tworząc migrację po każdej zmianie na istniejącej bazie.
+	\end{description}
 
 	\subsection{Warstwa Api}
 		W tej warstwie skonfigurowany został serwer GraphQL.
@@ -885,11 +884,37 @@
 				FROM "Artists" AS a
 				WHERE STRPOS(LOWER(a."Name"), @__ToLower_0) > 0
 			\end{lstlisting}
+			
+			Aby uniknąć dodawania referencji do bibliotek związanych z dostępem do bazy, rejestracja DbContext również odbywa się w tej warstwie.
+			Stworzono w tym celu extension method \todo{przetłumaczyć jakoś},
+			która rozszerza klasę IServiceCollection o metodę AddDbContext przyjmującą connection string do bazy.
+			Metoda ta rejestruje kontekst bazy wykorzystując funkcję \verb|UseNpgsql| biblioteki \emph{Npgsql}.
+			Dodatkowo, w opcjach użyto metody \verb|UseLazyLoadingProxies|.
+			Jest to rozszerzenie zawarte w bibliotece \emph{Microsoft.EntityFrameworkCore.Proxies},
+			które pozwala na lazy loading \todo{przetłumaczyć} pokrewnych encji.
+			Dzięki temu możliwe jest wykonywanie zapytań o dowolnej głębokości zagnieżdżenia bez jawnej deklaracji, które tablice mają zostać załadowane.
+			\todo{sprawdzić wywołania SQL przy zagnieżdżaniu}
+			
+			\begin{lstlisting}
+				public static void AddDbContext(
+					this IServiceCollection services, string connectionString) =>
+					services.AddDbContext<AppDbContext>(options =>
+					{
+						options.UseLazyLoadingProxies();
+						options.UseNpgsql(connectionString);
+					});
+			\end{lstlisting}
 
 		\subsubsection*{Rejestracja zależności}
 			Rejestracja zależności odbywa się przy pomocy narzędzia \emph{Autofac}.
 			Metoda \verb|InitializeApi|, wywoływana na końcu metody \verb|ConfigureServices| klasy \verb|Startup| warstwy Api,
-			W pierwszej kolejności 
+			W pierwszej kolejności w kontenerze Autofac rejestrowane są wszystkie serwisy z projektów Core oraz Infrastructure.
+			Funkcja \verb|RegisterAssemblyTypes| skanuje assembly \todo{opisać jak działo}.
+			Następnie do kontenera przekazywane są wszystkie dotychczas zarejestrowane serwisy,
+			po czym skanownane jest assembly warstwy Api, przekazane podczas wywołania konfiguracji:
+			\begin{lstlisting}
+				ContainerSetup.InitializeApi(Assembly.GetExecutingAssembly(), services);
+			\end{lstlisting}
 
 			\begin{lstlisting}[label=lst:autofac, caption=Rejestracja zależności wykorzystująca Autofac, float]
 				public static IServiceProvider InitializeApi(
@@ -902,7 +927,7 @@
 					}));
 	
 				public static IContainer BaseAutofacInitialization(
-					Action<ContainerBuilder> setupAction = null!)
+					Action<ContainerBuilder>? setupAction)
 				{
 					var builder = new ContainerBuilder();
 		
@@ -917,14 +942,83 @@
 			\end{lstlisting}
 	
 \section{Serwis uwierzytelniający}
-	\subsection{Zastosowane technologie}
-		Oprócz opisanych wcześniej \emph{Entity Framework Core} oraz \emph{Serilog} wykorzystane zostały:
-		\begin{description}
-			\item[IdentityServer4] 
-			\item[AspNetCore.Identity] 
-		\end{description}
+	Serwis również stworzony został na platformie Microsoftu.
+	Do zaimplementowania głównej funkcjonalności wykorzystano następujące biblioteki:
+	\begin{description}
+		\item[IdentityServer4] 
+		\item[AspNetCore.Identity] 
+	\end{description}
 
-	\subsection{Proces rejestracji i logowania}
+	Zarówno rejestracja jak i logowanie wykorzystują widoki dostarczone przez Identity.
+	Podczas wykonywania tych akcji użytkownik zostaje przekierowany na serwer Auth przy pomocy odwróconego proxy.
+	\todo{konfiguracja bibliotek}
+
+	\subsection{Konfiguracja}
+		Na serwerze zarejestrowany został jeden klient, \verb|angular_spa|, z którego korzystać będą użytkownicy.
+		Poniżej opisane zostały najważniejsze opcje:\todo{wstawić też kod JWT}
+		\begin{description}
+			\item[1] Id klienta musi być takie same
+		\end{description}
+		\begin{lstlisting}[label=lst:openIdSrv, caption=Konfiguracja OpenId po stronie serwera, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+			ClientId = "angular_spa",
+			ClientName = "Angular SPA",
+			RequireConsent = false,
+			AllowedGrantTypes = GrantTypes.Code,
+			RequirePkce = true,
+			RequireClientSecret = false,
+			AllowedScopes = {"openid", "profile", "email"},
+			RedirectUris = {
+				"http://localhost/login-callback",
+				"http://localhost/register-callback",
+				"http://localhost/silent-refresh"},
+			PostLogoutRedirectUris = {"http://localhost/"},
+			AllowedCorsOrigins = {"http://localhost"},
+			AllowAccessTokensViaBrowser = true,
+			AccessTokenLifetime = 3600
+		\end{lstlisting}
+
+		\begin{lstlisting}[label=lst:openIdSpa, caption=Konfiguracja OpenId po stronie Spa, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+			authority: environment.authServerUri,
+			client_id: 'angular_spa',
+			response_type: 'code',
+			scope: 'openid profile email api.read',
+			filterProtocolClaims: true,
+			loadUserInfo: true,
+			automaticSilentRenew: true,
+			redirect_uri: `${environment.thisUri}/login-callback`,
+			post_logout_redirect_uri: `${environment.thisUri}/`,
+			silent_redirect_uri: `${environment.thisUri}/silent-refresh`
+		\end{lstlisting}
+	\subsection{Rejestracja}
+		Podczas rejestracji użytkownik podaje login i hasło.
+		Na podstawie tych danych tworzony jest nowe konto i zapisywane jest w bazie danych przez pomocniczy obiekt klasy \verb|UserManager|,
+		jak ukazano na listingu~\ref{lst:register}.
+		Następnie użytkownik zostaje przekierowany z powrotem na serwis SPA.
+
+		\begin{lstlisting}[label=lst:register, caption=Fragment kodu rejestacji, float]
+			var user = new IdentityUser {UserName = Input.Email, Email = Input.Email};
+			var result = await _userManager.CreateAsync(user, Input.Password);
+			if (result.Succeeded)
+			{
+				await _signInManager.SignInAsync(user, isPersistent: false);
+				return Redirect(returnUrl);
+			}
+		\end{lstlisting}
+
+	\subsection{Logowanie}
+		Logowanie odbywa się wykorzystując protokół OpenID z kodem autoryzacji i PKCE opisanym w rozdziale~\ref{sec:openid}.
+		
+		\begin{lstlisting}[label=lst:login, caption=Fragment kodu logowania, float]
+			var result = await _signInManager.PasswordSignInAsync(
+				Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
+			if (result.Succeeded)
+			{
+					return LocalRedirect(returnUrl);
+			}
+		\end{lstlisting}
+
+		\todo{screeny z networku przeglądarki}
+
 
 	\subsection{Autoryzacja dostępu do API}
 
