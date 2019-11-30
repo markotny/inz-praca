@@ -957,12 +957,16 @@
 		Na serwerze zarejestrowany został jeden klient, \verb|angular_spa|, z którego korzystać będą użytkownicy.
 		Poniżej opisane zostały najważniejsze opcje:\todo{wstawić też kod JWT}
 		\begin{description}
-			\item[1] Id klienta musi być takie same
+			\item[ClientId] Id klienta musi być takie same zarówno po stronie serwera jak i klienta
+			\item[AllowedGrantTypes] dozwolone tryby uwierzytelniania. Dozwolono jedynie tryb wykorzystujący kod autoryzacji
+			\item[RequirePkce] wymagane użycie kodu PKCE
+			\item[AllowedScopes] dozwolone zakresy informacji o użytkowniku, o które może poprosić klient
+			\item[RedirectUris] adresy, na które może przekierować aplikacja
 		\end{description}
-		\begin{lstlisting}[label=lst:openIdSrv, caption=Konfiguracja OpenId po stronie serwera, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+		\begin{lstlisting}[label=lst:openIdSrv, caption=Konfiguracja OpenId po stronie serwera, float]
 			ClientId = "angular_spa",
 			ClientName = "Angular SPA",
-			RequireConsent = false,
+			RequireConsent = false,a
 			AllowedGrantTypes = GrantTypes.Code,
 			RequirePkce = true,
 			RequireClientSecret = false,
@@ -977,7 +981,7 @@
 			AccessTokenLifetime = 3600
 		\end{lstlisting}
 
-		\begin{lstlisting}[label=lst:openIdSpa, caption=Konfiguracja OpenId po stronie Spa, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+		\begin{lstlisting}[label=lst:openIdSpa, caption=Konfiguracja OpenId po stronie Spa, float]
 			authority: environment.authServerUri,
 			client_id: 'angular_spa',
 			response_type: 'code',
@@ -989,6 +993,7 @@
 			post_logout_redirect_uri: `${environment.thisUri}/`,
 			silent_redirect_uri: `${environment.thisUri}/silent-refresh`
 		\end{lstlisting}
+
 	\subsection{Rejestracja}
 		Podczas rejestracji użytkownik podaje login i hasło.
 		Na podstawie tych danych tworzony jest nowe konto i zapisywane jest w bazie danych przez pomocniczy obiekt klasy \verb|UserManager|,
@@ -1007,18 +1012,63 @@
 
 	\subsection{Logowanie}
 		Logowanie odbywa się wykorzystując protokół OpenID z kodem autoryzacji i PKCE opisanym w rozdziale~\ref{sec:openid}.
-		
-		\begin{lstlisting}[label=lst:login, caption=Fragment kodu logowania, float]
-			var result = await _signInManager.PasswordSignInAsync(
-				Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: true);
-			if (result.Succeeded)
-			{
-					return LocalRedirect(returnUrl);
-			}
+		W pierwszym kroku klient pobiera konfigurację serwera dostępną pod ustandaryzowanym adresem \verb|/.well-known/openid-configuraion|.
+		Jest to plik typu JSON definiujący pełną konfigurację serwisu uwierzytelniającego oraz adresy punktów dostępowych.
+		Na podstawie tej konfiguracji klient wykonuje zapytanie logowania pod adres \verb|/connect/authorize| z następującymi parametrami:
+		\begin{lstlisting}
+			client_id: angular_spa
+			redirect_uri: http://localhost/login-callback
+			response_type: code
+			scope: openid profile email api.read
+			state: 785f3544ba2a4df896290ccf5fedd51b
+			code_challenge: 9e5S4as5foL7Y4ye6JQfl3Uuyd9HzmYli4Y732RLqys
+			code_challenge_method: S256
+			response_mode: query
 		\end{lstlisting}
-
-		\todo{screeny z networku przeglądarki}
-
+		Parametr \verb|code_challenge| to wartość \verb|code_verifier| zmodyfikowana przez funkcję \verb|S256|.
+		Funkcja ta zdefiniowana jest w punkcie 4.2 RFC 7636~\cite{PKCE}:
+		\begin{lstlisting}
+			code_challenge = BASE64URL-ENCODE(SHA256(ASCII(code_verifier)))
+		\end{lstlisting}
+		Zapytanie to skutkuje przekierowaniem na stronę logowania \verb|/Login|.
+		Po podaniu prawidłowych danych użytkownik przekierowywany jest z powrotem na główną stronę, a w pasku adresu widoczne są następujące parametry:
+		\begin{lstlisting}
+			code: stR57rgpV11RCd09AMn2PBuxKh0tb3CoW_V9ULehChg
+			scope: openid profile email api.read
+			state: 785f3544ba2a4df896290ccf5fedd51b
+			session_state: [...]
+		\end{lstlisting}
+		Następnie w tle wykonywane jest zapytaniepod adresem \verb|/connect/token|  pobierające tokeny JWT:
+		\begin{lstlisting}
+			client_id: angular_spa
+			code: stR57rgpV11RCd09AMn2PBuxKh0tb3CoW_V9ULehChg
+			redirect_uri: http://localhost/login-callback
+			code_verifier: 5d797a22803645fc870b1f1d6c9e5dfc...
+			grant_type: authorization_code
+		\end{lstlisting}
+		Aplikacja precyzuje tryb uwierzytelaniania na \verb|authorization_code| i wysyła otrzymany przed chwilą kod autoryzacji.
+		Przesyłany jest również \verb|code_verifier| --- klucz, który wcześniej został przesłany w zmodyfikowanej wersji.
+		Serwer przekształca \verb|code_verifier| sprecyzowaną wczesniej funkcją \verb|code_challenge_method| i porównuje z \verb|code_challenge|.
+		Jeśli są sobie równe, w odpowiedzi aplikacja otrzymuje zarówno \verb|id_token|, jak i \verb|access_token|:
+		\begin{lstlisting}
+			id_token: [...]
+			access_token: [...]
+			expires_in: 3600
+			token_type: Bearer
+			scope: openid profile email api.read
+		\end{lstlisting}
+		Uzyskany token zostaje użyty do pobrania informacji o użytkowniku.
+		Służy do tego punkt połączeniowy \verb|/connect/userinfo|.
+		Przesyłany jest nie jako parametr, lecz jako nagłówek HTTP \verb|Authorization: Bearer [access_token]|.
+		W odpowiedzi serwer zwraca dane użytkownika identyfikującym się tym tokenem:
+		\begin{lstlisting}
+			sub: 0d6dfb71-745e-47c2-81f0-c9649bf0a2b2
+			preferred_username: a@a.a
+			name: a@a.a
+			email: a@a.a
+			email_verified: false
+		\end{lstlisting}
+		Ten sam token przekazywany jest podczas zapytań do serwisu API.
 
 	\subsection{Autoryzacja dostępu do API}
 
