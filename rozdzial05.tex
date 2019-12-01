@@ -741,7 +741,7 @@
 			
 			W projekcie stworzony został nowy middleware (Listing~\ref{lst:middleware}), który dodaje do bazy Api zalogowanego użytkownika, aby można było powiązać z nim dodawane occeny.
 			Serwis pobiera id zalogowanego użytkownika z kontekstu, a następnie sprawdza, czy taki użytkownik już istnieje.
-			Jeśli nie, to wykorzystuje \verb|OpenIdService| (opisany w rozdziale~\todo{odnieść sie do rozdziału o openid}),
+			Jeśli nie, to wykorzystuje \verb|OpenIdService| (opisany w rozdziale~\ref{sec:oidApi}),
 			aby pobrać nazwę użytkownika z serwera uwierzytelniającego.
 			Następnie dane te zapisuje w bazie za pomocą repozytorium.
 			Na końcu przekazuje zapytanie do dalszego przetwarzania poprzez \verb|_next(context)|.
@@ -886,15 +886,8 @@
 			\end{lstlisting}
 			
 			Aby uniknąć dodawania referencji do bibliotek związanych z dostępem do bazy, rejestracja DbContext również odbywa się w tej warstwie.
-			Stworzono w tym celu extension method \todo{przetłumaczyć jakoś},
+			Stworzono w tym celu metodę rozszerzającą,
 			która rozszerza klasę IServiceCollection o metodę AddDbContext przyjmującą connection string do bazy.
-			Metoda ta rejestruje kontekst bazy wykorzystując funkcję \verb|UseNpgsql| biblioteki \emph{Npgsql}.
-			Dodatkowo, w opcjach użyto metody \verb|UseLazyLoadingProxies|.
-			Jest to rozszerzenie zawarte w bibliotece \emph{Microsoft.EntityFrameworkCore.Proxies},
-			które pozwala na lazy loading \todo{przetłumaczyć} pokrewnych encji.
-			Dzięki temu możliwe jest wykonywanie zapytań o dowolnej głębokości zagnieżdżenia bez jawnej deklaracji, które tablice mają zostać załadowane.
-			\todo{sprawdzić wywołania SQL przy zagnieżdżaniu}
-			
 			\begin{lstlisting}
 				public static void AddDbContext(
 					this IServiceCollection services, string connectionString) =>
@@ -904,12 +897,73 @@
 						options.UseNpgsql(connectionString);
 					});
 			\end{lstlisting}
+			Metoda ta rejestruje kontekst bazy wykorzystując funkcję \verb|UseNpgsql| biblioteki \emph{Npgsql}.
+			Dodatkowo, w opcjach użyto metody \verb|UseLazyLoadingProxies|.
+			Jest to rozszerzenie zawarte w bibliotece \emph{Microsoft.EntityFrameworkCore.Proxies},
+			które pozwala na późne ładowanie (ang.\ \emph{lazy loading}) pokrewnych encji.
+			Dzięki temu możliwe jest wykonywanie zapytań o dowolnej głębokości zagnieżdżenia bez jawnej deklaracji, które tablice mają zostać załadowane.
+			
+			Należy jednak mieć na uwadze, że GraphQL sam w sobie nie stanowi rozwiązania problemu N+1.
+			Jest to problem wynikający z ładowania pokrewnych wpisów.
+			Dla jednego zapytania wykonywane jest kolejnych N zapytań, po jednym dla każdej relacji, stąd N+1.
+			Przykładowo, dla zapytania zawierającego podwójne zagnieżdżenie, gdzie dla każdego albumu zwracane są piosenki:
+			\begin{lstlisting}
+				query getart {
+					artist(id: "a0000000-0000-0000-0000-000000000001") {
+						id
+						name
+						albums {
+							id
+							title
+							songs {
+								id
+								title
+							}
+						}
+					}
+				}
+			\end{lstlisting}
+			wykonywane są następujące komendy SQL:
+			\begin{lstlisting}
+				[Parameters=[@__id_0='a0000000-0000-0000-0000-000000000001']
+				SELECT a."Id", a."MusicBrainzId", a."Name"
+				FROM "Artists" AS a
+				WHERE (a."Id" = @__id_0) AND (@__id_0 IS NOT NULL)
+				LIMIT 2
+
+				[Parameters=[@__p_0='a0000000-0000-0000-0000-000000000001']
+				SELECT a."Id", a."AlbumArtistId", a."AverageRating"
+					a."CoverSrc", a."MusicBrainzId", a."ReleaseDate", a."Title"
+				FROM "Albums" AS a
+				WHERE (a."AlbumArtistId" = @__p_0) AND (@__p_0 IS NOT NULL)
+
+				[Parameters=[@__p_0='b0000000-0000-0000-0000-000000000000']
+				SELECT s."Id", s."AlbumId", s."ArtistId", s."Length"
+					s."MusicBrainzId", s."Title", s."TrackNumber"
+				FROM "Songs" AS s
+				WHERE (s."AlbumId" = @__p_0) AND (@__p_0 IS NOT NULL)
+
+				[...]
+
+				[Parameters=[@__p_0='b0000000-0000-0000-0000-000000000009']
+				SELECT s."Id", s."AlbumId", s."ArtistId", s."Length"
+					s."MusicBrainzId", s."Title", s."TrackNumber"
+				FROM "Songs" AS s
+				WHERE (s."AlbumId" = @__p_0) AND (@__p_0 IS NOT NULL)
+			\end{lstlisting}
+			W pierwszej kolejności wczytywane są dane artysty oraz jego albumów (pierwsze dwa zapytania).
+			Następnie dla każdego z tych albumów ładowane są piosenki --- kolejnych 10 zapytań do bazy.
+			Jest to typowy problem ładowania danych, który powstaje podczas późnego ładowania powiązanych wpisów.
+			Jednym z możliwych rozwiązań jest wczesne ładowanie, czyli zadeklarowanie, które relacje mają zostać załadowane jeszcze przed wykonaniem zapytania do bazy.
+			Jednak w związku z tym, że klient korzystający z GraphQL może zarządać dowolną relację, nie ma możliwości statycznego zadeklarowania, które tablice mają zostać załadowane.
+			Potrzebne jest zatem dynamiczne rozwiązanie, które będzie interpretować zapytania i dołączać odpowiednie relacje bazy danych.
+			Można również zaimplementować \emph{data loader} --- narzędzie, które wysyła zapytania w partiach oraz wprowadza dodatkową warstwę cache.
 
 		\subsubsection*{Rejestracja zależności}
 			Rejestracja zależności odbywa się przy pomocy narzędzia \emph{Autofac}.
 			Metoda \verb|InitializeApi|, wywoływana na końcu metody \verb|ConfigureServices| klasy \verb|Startup| warstwy Api,
 			W pierwszej kolejności w kontenerze Autofac rejestrowane są wszystkie serwisy z projektów Core oraz Infrastructure.
-			Funkcja \verb|RegisterAssemblyTypes| skanuje assembly \todo{opisać jak działo}.
+			Funkcja \verb|RegisterAssemblyTypes| skanuje całe assembly (skompilowany projekt) i wyszukuje serwisy utworzone zgodnie z przyjętymi konwencjami.
 			Następnie do kontenera przekazywane są wszystkie dotychczas zarejestrowane serwisy,
 			po czym skanownane jest assembly warstwy Api, przekazane podczas wywołania konfiguracji:
 			\begin{lstlisting}
@@ -951,11 +1005,10 @@
 
 	Zarówno rejestracja jak i logowanie wykorzystują widoki dostarczone przez Identity.
 	Podczas wykonywania tych akcji użytkownik zostaje przekierowany na serwer Auth przy pomocy odwróconego proxy.
-	\todo{konfiguracja bibliotek}
 
 	\subsection{Konfiguracja}
 		Na serwerze zarejestrowany został jeden klient, \verb|angular_spa|, z którego korzystać będą użytkownicy.
-		Poniżej opisane zostały najważniejsze opcje:\todo{wstawić też kod JWT}
+		Poniżej opisane zostały najważniejsze opcje:
 		\begin{description}
 			\item[ClientId] Id klienta musi być takie same zarówno po stronie serwera jak i klienta
 			\item[AllowedGrantTypes] dozwolone tryby uwierzytelniania. Dozwolono jedynie tryb wykorzystujący kod autoryzacji
@@ -966,7 +1019,7 @@
 		\begin{lstlisting}[label=lst:openIdSrv, caption=Konfiguracja OpenId po stronie serwera, float]
 			ClientId = "angular_spa",
 			ClientName = "Angular SPA",
-			RequireConsent = false,a
+			RequireConsent = false,
 			AllowedGrantTypes = GrantTypes.Code,
 			RequirePkce = true,
 			RequireClientSecret = false,
@@ -1070,8 +1123,64 @@
 		\end{lstlisting}
 		Ten sam token przekazywany jest podczas zapytań do serwisu API.
 
-	\subsection{Autoryzacja dostępu do API}
+	\subsection{Autoryzacja dostępu do API}\label{sec:oidApi}
+		Serwis Apollo po stronie SPA przekazuje w nagłówku autoryzacji token dostępowy, jak ukazano na listingu~\ref{lst:apolloSettings}.
+		Do walidacji tokena po stronie API użyta została wbudowana w .NET Core metoda \verb|AddJwtBearer|:
+		\begin{lstlisting}
+			services.AddAuthentication("Bearer").AddJwtBearer("Bearer", options =>
+			{
+				options.Authority = "http://authServer";
+				options.Audience = "reServer";
+				options.RequireHttpsMetadata = false;
+				options.TokenValidationParameters.ValidIssuer = "http://auth";
+				options.SaveToken = true;
+			});
+		\end{lstlisting}
+		W opcjach podano parametry służące do walidacji tokena:
+		\begin{description}
+			\item[Authority] to adres serwera, który wystawił token
+			\item[Audience] to identyfikator serwera zawierającego dane, do których dostęp daje \verb|access_token|
+			\item[RequireHttpsMetadata] szyfrowane połączenie nie jest wymagane, ponieważ zapytania do serwisu Auth nie wychodzą poza wewnętrzną sieć dockerową
+			\item[TokenValidationParameters.ValidIssuer] ustawione na taką samą wartość jak po stronie serwisu Auth.
+				Jest to wymagane, ponieważ serwis Auth przyjmuje zapytania zarówno z zewnątrz przez odwrócone proxy, jak i z wewnętrznej sieci dockerowej.
+		\end{description}
+
+		Tak ustawiony middleware rejestrowane jest w funkcji Configure, która definiuje kolejność obsługiwania zapytań HTTP:
+		\begin{lstlisting}
+			app.UseAuthentication();
+			app.UseAuthorization();
+		\end{lstlisting}
+		Dzięki temu dane uwierzytelnionego użytkownika dostępne są w \verb|HttpContext.User| i mogą zostać wykorzystane w innych warstwach aplikacji, jak ukazano na listingu~\ref{lst:middleware}.
+		Klasa ta wykorzystuje serwis \verb|OpenIdService| --- skonfigurowany klient HTTP, który łączy się z serwisem Auth (Listing~\ref{lst:openIdService}).
+		Dane pobierane są z adrestu \verb|/connect/userinfo| przesyłając token w nagłówku \verb|Authorization|.
+		Odpowiedź z serwera serializowana jest do zdefiniowanej klasy \verb|UserInfo|.
+		\begin{lstlisting}[label=lst:openIdService, caption=Serwis HTTP pobierający dane użytkownika, float]
+			public class OpenIdService
+			{
+				public HttpClient Client { get; }
+		
+				public OpenIdService(HttpClient client)
+				{
+					client.BaseAddress = new Uri("http://authServer/connect/");
+					Client = client;
+				}
+		
+				public async Task<UserInfo> GetUserInfo(string accessToken)
+				{
+					Client.DefaultRequestHeaders.Authorization
+						= new AuthenticationHeaderValue("Bearer", accessToken);
+					var response = await Client.GetAsync("userinfo");
+					response.EnsureSuccessStatusCode();
+		
+					using var responseStream = await response.Content.ReadAsStreamAsync();
+					return await JsonSerializer.DeserializeAsync<UserInfo>(responseStream);
+				}
+			}
+		\end{lstlisting}
 
 \section{Baza danych}
+	
+
+
 
 \section{Odwrócone proxy}
