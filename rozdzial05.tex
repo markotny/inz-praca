@@ -795,13 +795,12 @@
 				}
 			\end{lstlisting}
 
-	\subsection{Warstwa domenowa}
+	\subsection{Warstwa domenowa}\label{sec:apiCore}
 		Warstwa domenowa zawiera logikę biznesową aplikacji: encje, serwisy i interfejsy.
 		Interfejsy definiują abstrakcje operacji, które wykonywane będą w warstwie infrastruktury.
 		Są to dostęp do systemu plików, połączenie z bazą danych czy zapytania HTTP.
 
-		Encje posiadają zadeklarowane zarówno klucze obce, jak i wirtualne ścieżki.
-		Wirtualne ścieżki wykorzystywane są do zagnieżdżania zapytań graphql, natomiast klucze obce podczas dodawania nowych wpisów do bazy.
+		Modele encji opisane zostały w rozdziale~\ref{sec:ReServerDB}.
 		W projekcie zaimplementowano wzorzec projektowy \emph{Repository}.
 		Stworzono w tym celu generyczny interfejs definiujący repozytorium:
 		\begin{lstlisting}
@@ -818,7 +817,7 @@
 		Przyjmowany typ \verb|T| musi dziedziczyć po \verb|BaseEntity|, co zapewnia obecność pola \verb|Id| typu Guid.
 		Implementacja repozytorum opisana została w następnym rozdziale.
 
-	\subsection{Warstwa infrastruktury}
+	\subsection{Warstwa infrastruktury}\label{sec:apiInfr}
 		W tej warstwie znajdują się implementacje dostępu do danych oraz rejestracja zależności aplikacji.
 
 		\subsubsection*{Dostęp do danych}
@@ -1179,8 +1178,61 @@
 		\end{lstlisting}
 
 \section{Baza danych}
-	
+	W tym samym kontenerze \verb|mainDB| utworzone zostały dwie bazy:
+	\begin{itemize}
+		\item AuthServerDB
+		\item ReServerDB
+	\end{itemize}
+	Są to odpowiednio: baza z kontami użytkowników utworzona przez serwis Auth, oraz główna baza danych aplikacji wykorzystywana przez serwis API.
+	Obie te bazy utworzone zostały metodą \emph{code first} przy pomocy migracji Entity Framework Core.
 
+	\subsection{AuthServerDB}
+		W projekcie są dwa różne konteksty bazy danych:
+		\begin{description}
+			\item[ApplicationDbContext] główny kontekst, który rozszerza \verb|IdentityDbContext| definiujący bazę używaną przez Identity
+			\item[PersistedGrantDbContext] kontekst wygenerowany przez IdentityServer4, generuje tablice do przechowywania kodów i tokenów
+		\end{description}
 
+		Oba konteksty rejestrowane są standardowo w klasie \verb|Startup|:
+		\begin{lstlisting}
+			services.AddDbContext<ApplicationDbContext>(options =>
+				options.UseNpgsql(
+					Configuration.GetConnectionString("DefaultConnection")));
+
+			services.AddIdentityServer(options => options.IssuerUri="http://auth")
+				.AddOperationalStore(options =>
+				{
+					options.ConfigureDbContext = builder => builder.UseNpgsql(
+						Configuration.GetConnectionString("DefaultConnection"),
+						options => options.MigrationsAssembly(
+							Assembly.GetExecutingAssembly().GetName()));
+					options.EnableTokenCleanup = true;
+				})
+		\end{lstlisting}
+		Oba połączenia wykorzystują ten sam \emph{connection string}, ponieważ dane przechowywane są w jednej wspólnej bazie.
+		Dwa osobne konteksty skutkują również tym, że generowane są osobne migracje.
+		Obie jednak mogą zostać wykonane na tej samej bazie danych niezależnie, gdyż nie są ze sobą połączone żadnymi relacjami.
+
+	\subsection{ReServerDB}\label{sec:ReServerDB}
+		Baza generowana jest z modeli znajdujących się w projekcie Core (opisanym w rozdziale~\ref{sec:apiCore}).
+		Wszystkie modele rozszerzają klasę \verb|BaseEntity|, która definiuje pole \verb|Id| typu Guid.
+		Encje posiadają zadeklarowane zarówno klucze obce, jak i wirtualne ścieżki.
+		Wirtualne ścieżki wykorzystywane są do zagnieżdżania zapytań graphql, natomiast klucze obce podczas dodawania nowych wpisów do bazy.
+		Modele połączone są relacjami jeden do wielu.
+		Aby okreslić relację między modelami \emph{Album} i \emph{Song}, w modelu \emph{Album} tworzona jest lista typu \verb|ICollection<Song>|,
+		natomiast w modelu \emph{Song} tworzone jest pole typu \verb|Album|.
+		Analogicznie zamodelowana została relacja między \emph{Album}, a \emph{Artist}:
+		\begin{lstlisting}
+			public class Album : BaseEntity
+			{
+				public virtual Artist AlbumArtist { get; set; }
+				public virtual ICollection<Song> Songs { get; set; }
+				public virtual ICollection<Rating> Ratings { get; set; }
+			}
+		\end{lstlisting}
+		Relacje te są wykrywane przez Entity Framework Core, który poprawnie tworzy ograniczenia (ang.\ \emph{constraints}) na bazie.
+		Kontekst bazy zawarty jest w warstwie infrastruktury i opisany został w rozdziale~\ref{sec:apiInfr}.
 
 \section{Odwrócone proxy}
+	Odwrócone proxy zaimplementowane zostało przy pomocy narzędzia \emph{nginx}.
+	
