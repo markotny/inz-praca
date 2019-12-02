@@ -11,7 +11,7 @@
 	Aby zapewnić najwyższe bezpieczeństwo, porty kontenerów nie są mapowane na zewnątrz dockera.
 	Wyjątkiem jest kontener z odwróconym proxy (\emph{revProxy}), który obsługuje całą komunikację ze światem zewnętrznym.
 	Kieruje on odpowiednio ruchem w zależności od adresu zapytania.
-	Na przykładzie lokalnego adresu zapytania obsługiwane będą w następujący sposób:
+	Na przykładzie lokalnego adresu, zapytania obsługiwane będą w następujący sposób:
 	\begin{description}
 		\item[localhost/] domyślnie cały ruch kierowany jest do strony internetowej serwowanej z kontenera \emph{spa}
 		\item[auth.localhost/] zapytania z subdomeną \emph{auth} kierowane są do kontenera \emph{authServer} obsługującego zapytania związane z OpenID

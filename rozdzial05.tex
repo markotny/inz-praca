@@ -169,48 +169,31 @@
 
 	\subsection{Klient GraphQL}
 		Klient Apollo zbudowany został z opcjami przedstawionymi na listingu~\ref{lst:apolloSettings}.
-		Jako adres Api Graphql użyto względnego uri wykorzystującego adres zdefiniowany w odwróconym proxy.
+		Jako adres Api Graphql użyto względnego uri wykorzystującego adres zdefiniowany w odwróconym proxy: \verb|uri = api/graphql|.
 		W domyślnych ustawieniach zdefiniowano nagłówek autoryzujący pobierający Access Token zalogowanego użytkownika z serwisu \verb|AuthService|.
 		Dzięki temu tożsamosć użytkownika może zostać zweryfikowana po stronie serwera.
-		W tym miejscu zapisywane są również domyślne ustawienia aplikacji w \verb|InMemoryCache|, cache przetrzymywanym w pamięci przeglądarki.
+		W tym miejscu zapisywane są również domyślne ustawienia aplikacji w \verb|InMemoryCache|.
 		Uwarunkowane jest to tym, że ustawienia aplikacji nie są przetrzymywane w bazie danych.
 		Możliwe jest to dzięki temu, że biblioteka apollo pozwala na definiowanie lokalnego schematu GraphQL, który rozszerza schemat wykorzystywanego API.
 		W ten sposób uzyskano zarządzanie stanem aplikacji bez wykorzystywania dodatkowych bilbiotek typu \emph{NgRx} czy \emph{Redux}.
 		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float=h]
-			const uri = 'api/graphql';
-
-			@NgModule({
-				exports: [ApolloModule, HttpLinkModule],
-				providers: [
-					{
-						provide: APOLLO_OPTIONS,
-						useFactory: (httpLink: HttpLink, authService: AuthService) => {
 							const auth = setContext((_operation, _context) => ({
 								headers: {
 									Authorization: authService.authorizationHeaderValue
 								}
 							}));
-			
-							const cache = new InMemoryCache();
-			
+							const cache = new InMemoryCache();			
 							const defaultSettings = {
 								__typename: 'Settings',
 								theme: 'dark-theme'
 							} as Settings;
-							cache.writeData({data: {settings: defaultSettings}});
-			
+							cache.writeData({data: {settings: defaultSettings}});			
 							return {
 								link: ApolloLink.from([auth, httpLink.create({uri})]),
 								cache,
 								resolvers,
 								typeDefs: {}
 							};
-						},
-						deps: [HttpLink, AuthService]
-					}
-				]
-			})
-			export class GraphQLModule {}
 		\end{lstlisting}
 
 		\subsubsection*{Wywoływanie zapytań}
@@ -368,7 +351,7 @@
 		W routingu głównego modułu \verb|app-routing.module| (Listing~\ref{lst:routing})
 		zdefiniowane zostały trasy wywołań zwrotnych (ang.\ \emph{callback}) serwisu uwierzytelniającego oraz trasy do odpowiednich modułów.
 		Moduły ładowane są dynamicznie dopiero po przekierowaniu w odpowiedni adres za pomocą metody \verb|loadChildren|.
-		Podczas mapowania adresu router wyszukuje pierwszego dopasowania.
+		Podczas mapowania adresu router wyszukuje pierwsze dopasowanie.
 		Bazowy adres (np. \emph{localhost}) przkierowywany jest na świeżkę \emph{home}.
 		Następnie adres dopasowywany jest do któregoś z callback-ów lub modułów.
 		Jeśli żaden nie pasuje, to znaczy że adres jest nieprawidłowy i jest łapany przez domyślną trasę (\verb|**|), która przekierowuje na \emph{home}.
@@ -527,15 +510,15 @@
 		\end{lstlisting}
 
 	\subsection{Responsive design}
-		Widoki aplikacji testowane były zarówno na ekranie Full HD, jak i o rozmiarze telefonu komórkowego (360px na 740px).
+		Widoki aplikacji testowane były zarówno na ekranie Full HD, jak i o rozmiarze telefonu komórkowego (414px na 736px --- iPhone~7).
 		Aby zapewnić wymaganą skalowalność interfejsu, elementy widoków zachowują się inaczej w zależności od szerokości ekranu.
-		Atrybuty wykorzystujące responsywne API biblioteki \emph{flex-layout} wykorzystane zostały przy budowie nawigacji przedstawionej na listingu~\ref{lst:flexLayout}.
-		Atrybut \verb|fxHide.gt-xs| chowa cały element jeśli rozmiar ekranu jest większy niż \verb|xs|.
-		W ten sposób otrzymano toolbar, który dla zwykłych ekranów zawiera przyciski nawigacji (Rys.~\ref{fig:gt-xs}),
-		a dla mniejszych przełącza menu boczne (Rys.~\ref{fig:xs}).
-		Znaczenie aliasów wykorzystywanych do definiowania rozmiarów zamieszczono w tabeli~\ref{tab:flexLayoutApi}.
-
-		\begin{lstlisting}[label=lst:flexLayout, caption=Menu nawigacji zależne od rozmiaru ekranu, float=h]
+		Atrybuty wykorzystujące responsywne API biblioteki \emph{flex-layout} wykorzystane zostały przy budowie menu nawigacji.
+		Atrybut \verb|fxHide.gt-xs| chowa cały element jeśli rozmiar ekranu jest większy niż \verb|xs| (599px).
+		W ten sposób otrzymano pasek menu, który dla zwykłych ekranów zawiera przyciski nawigacji (Rys.~\ref{fig:gt-xs}),
+		a dla mniejszych przełącza menu boczne (Rys.~\ref{fig:xs}):
+		% Znaczenie aliasów wykorzystywanych do definiowania rozmiarów zamieszczono w tabeli~\ref{tab:flexLayoutApi}.
+		% \begin{lstlisting}[label=lst:flexLayout, caption=Menu nawigacji zależne od rozmiaru ekranu, float=hb]
+		\begin{lstlisting}
 			<div fxHide.gt-xs>
 				<button mat-icon-button (click)="onToggleSidenav()">
 					<mat-icon>menu</mat-icon>
@@ -549,40 +532,37 @@
 			</div>
 		\end{lstlisting}
 
-		\begin{table}[ht]
-			\centering
-			\caption{Zestawienie aliasów Api flex-layout z odpowiadającymi komendami mediaQuery~\cite{flexLayout}}
-			\label{tab:flexLayoutApi}
-			\begin{tabular}{|ll|} \hline
-				Alias & mediaQuery \\ \hline\hline
-				xs	&	'screen and (max-width: 599px)'	\\
-				sm	&	'screen and (min-width: 600px) and (max-width: 959px)'	\\
-				md	&	'screen and (min-width: 960px) and (max-width: 1279px)'	\\
-				lg	&	'screen and (min-width: 1280px) and (max-width: 1919px)'	\\
-				xl	&	'screen and (min-width: 1920px) and (max-width: 5000px)'	\\
-					&		\\
-				lt-sm	&	'screen and (max-width: 599px)'	\\
-				lt-md	&	'screen and (max-width: 959px)'	\\
-				lt-lg	&	'screen and (max-width: 1279px)'	\\
-				lt-xl	&	'screen and (max-width: 1919px)'	\\
-					&		\\
-				gt-xs	&	'screen and (min-width: 600px)'	\\
-				gt-sm	&	'screen and (min-width: 960px)'	\\
-				gt-md	&	'screen and (min-width: 1280px)'	\\
-				gt-lg	&	'screen and (min-width: 1920px)'	\\
-				\hline
-			\end{tabular}
-		\end{table}
+		% \begin{table}[hb]
+		% 	\centering
+		% 	\caption{Zestawienie aliasów Api flex-layout z odpowiadającymi komendami mediaQuery~\cite{flexLayout}}
+		% 	\label{tab:flexLayoutApi}
+		% 	\begin{tabular}{|ll|} \hline
+		% 		Alias & mediaQuery \\ \hline\hline
+		% 		xs	&	'screen and (max-width: 599px)'	\\
+		% 		sm	&	'screen and (min-width: 600px) and (max-width: 959px)'	\\
+		% 		md	&	'screen and (min-width: 960px) and (max-width: 1279px)'	\\
+		% 		lg	&	'screen and (min-width: 1280px) and (max-width: 1919px)'	\\
+		% 		xl	&	'screen and (min-width: 1920px) and (max-width: 5000px)'	\\
+		% 			&		\\
+		% 		lt-sm	&	'screen and (max-width: 599px)'	\\
+		% 		lt-md	&	'screen and (max-width: 959px)'	\\
+		% 		lt-lg	&	'screen and (max-width: 1279px)'	\\
+		% 		lt-xl	&	'screen and (max-width: 1919px)'	\\
+		% 			&		\\
+		% 		gt-xs	&	'screen and (min-width: 600px)'	\\
+		% 		gt-sm	&	'screen and (min-width: 960px)'	\\
+		% 		gt-md	&	'screen and (min-width: 1280px)'	\\
+		% 		gt-lg	&	'screen and (min-width: 1920px)'	\\
+		% 		\hline
+		% 	\end{tabular}
+		% \end{table}
 
-		\begin{figure}[ht]
+		\begin{figure}[h]
 			\centering
 				\includegraphics[height=200px]{rys05/gt-xs.png}
 			 \caption{Menu nawigacji dla zwykłych ekranów}
 			 \label{fig:gt-xs}
-		\end{figure}
 
-		\begin{figure}[ht]
-			\centering
 				\includegraphics[height=200px]{rys05/xs.png}
 			 \caption{Wysunięte manu nawigacji dla małych ekranów}
 			 \label{fig:xs}
@@ -591,7 +571,7 @@
 	\subsection{Motyw aplikacji}
 		W aplikacji skorzystano z biblioteki \emph{Anuglar Material}, która oprócz gotowych, często używanych komponentów,
 		ułatwia korzystanie z globalnego motywu kolorystycznego.
-		Definiowanie kolorystyki odbywa się za pomoca \emph{mixin}, które określają kolory poszczególnych komponentów.
+		Definiowanie kolorystyki odbywa się za pomocą \emph{mixin}, które określają kolory poszczególnych komponentów.
 		Zaimplementowane zostały dwa motywy, choć dodanie kolejnego wiąże się jedynie ze zdefiniowaniem kolorystyki w jednym miejscu.
 		Domyślny, ciemny motyw zdefiniowany został następująco:
 		\begin{lstlisting}[label=lst:darkTheme]
@@ -601,7 +581,7 @@
 			
 			$dark-theme: mat-dark-theme($dark-primary, $dark-accent, $dark-warn);
 		\end{lstlisting}
-		Funkcja \verb|mat-palette| zwraca paletę kolorów: pierwszy argument określa bazową paletę koloru, a kolejne trzy odpowiednio domyślny, jasny i ciemniejszy odcień.
+		Funkcja \verb|mat-palette| zwraca paletę kolorów: pierwszy argument określa paletę koloru, a kolejne trzy odpowiednio domyślny, jasny i ciemniejszy odcień.
 		Metoda \verb|mat-dark-theme| oraz analogiczna \verb|mat-light-theme| oprócz przekazanych palet kolorów definiują dodatkowo domyślne kolory tła.
 		Na podstawie tych mixin-ów stworzone zostały dwa style css:
 		\begin{lstlisting}			
@@ -623,7 +603,7 @@
 			}	
 		\end{lstlisting}
 
-		Aby wykorzystać kolory motywu we własnych komponentach (nie zawartych w \verb|angular-material-theme|),
+		Aby wykorzystać kolory motywu we własnych komponentach (nie zawartych w paczce \verb|angular-material-theme|),
 		należy stworzyć nowy \emph{mixin}, który może pobierać ustawione kolory za pomocą funkcji \verb|map-get|.
 		Przykładowy \emph{mixin}, który wykorzystuje tą metodę jest następujący:
 		\begin{lstlisting}
@@ -753,7 +733,7 @@
 					.Type<NonNullType<AlbumType>>();
 			\end{lstlisting}
 
-			\begin{lstlisting}[label=lst:middleware, caption=Middleware zapisujące użytkowników, float=h]
+			\begin{lstlisting}[label=lst:middleware, caption=Middleware zapisujące użytkowników, float=hb]
 				public class RecordUserMiddleware
 				{
 					private readonly FieldDelegate _next;
@@ -820,6 +800,50 @@
 	\subsection{Warstwa infrastruktury}\label{sec:apiInfr}
 		W tej warstwie znajdują się implementacje dostępu do danych oraz rejestracja zależności aplikacji.
 
+		\begin{lstlisting}[label=lst:repository, caption=Implementacja repozytorium, float=h]
+			public class EfRepository : IRepository
+			{
+				private readonly AppDbContext _dbContext;
+		
+				public EfRepository(AppDbContext dbContext)
+				{
+					_dbContext = dbContext;
+				}
+				public T? GetById<T>(Guid id) where T : BaseEntity
+				{
+					return _dbContext.Set<T>().SingleOrDefault(e => e.Id == id);
+				}
+				public List<T> List<T>() where T : BaseEntity
+				{
+					return _dbContext.Set<T>().ToList();
+				}
+				public List<T> List<T>(Expression<Func<T, bool>> filter)
+						where T : BaseEntity
+				{
+					return _dbContext.Set<T>().Where(filter).ToList();
+				}
+				public T Add<T>(T entity) where T : BaseEntity
+				{
+					_dbContext.Set<T>().Add(entity);
+					_dbContext.SaveChanges();
+		
+					return entity;
+				}
+				public T Update<T>(T entity) where T : BaseEntity
+				{
+					_dbContext.Entry(entity).State = EntityState.Modified;
+					_dbContext.SaveChanges();
+		
+					return entity;
+				}
+				public void Delete<T>(T entity) where T : BaseEntity
+				{
+					_dbContext.Set<T>().Remove(entity);
+					_dbContext.SaveChanges();
+				}
+			}
+		\end{lstlisting}
+
 		\subsubsection*{Dostęp do danych}
 			Jest to jedyna warstwa aplikacji, która deklaruje jako zależność bibliotekę \emph{Entity Framework Core}.
 			Klasa \verb|EfRepository| (Listing~\ref{lst:repository}) implementuje interfejs zdefiniowany w warstwie Core wykorzystując EF Core.
@@ -829,50 +853,6 @@
 			W obecnej implementaji każde zapytanie modyfikujące bazę zamyka transakcję.
 			W tej klasie umieszczane są również inne transformacje zapytań wykonywane za każdym razem,
 			np.\ pomijanie wpisów, które oznaczone zostały jako nieaktywne (ang.\ \emph{soft delete}).
-
-			\begin{lstlisting}[label=lst:repository, caption=Implementacja repozytorium, float=h]
-				public class EfRepository : IRepository
-				{
-					private readonly AppDbContext _dbContext;
-			
-					public EfRepository(AppDbContext dbContext)
-					{
-						_dbContext = dbContext;
-					}
-					public T? GetById<T>(Guid id) where T : BaseEntity
-					{
-						return _dbContext.Set<T>().SingleOrDefault(e => e.Id == id);
-					}
-					public List<T> List<T>() where T : BaseEntity
-					{
-						return _dbContext.Set<T>().ToList();
-					}
-					public List<T> List<T>(Expression<Func<T, bool>> filter)
-							where T : BaseEntity
-					{
-						return _dbContext.Set<T>().Where(filter).ToList();
-					}
-					public T Add<T>(T entity) where T : BaseEntity
-					{
-						_dbContext.Set<T>().Add(entity);
-						_dbContext.SaveChanges();
-			
-						return entity;
-					}
-					public T Update<T>(T entity) where T : BaseEntity
-					{
-						_dbContext.Entry(entity).State = EntityState.Modified;
-						_dbContext.SaveChanges();
-			
-						return entity;
-					}
-					public void Delete<T>(T entity) where T : BaseEntity
-					{
-						_dbContext.Set<T>().Remove(entity);
-						_dbContext.SaveChanges();
-					}
-				}
-			\end{lstlisting}
 			
 			Do tłumaczenia zapytań na język SQL kompatybilny z bazą PostgreSQL wykorzystano bibliotekę \emph{Npgsql}.
 			Przykładowo, wywołanie z listingu~\ref{lst:queryClr} wyszukujące po nazwie artysty zostanie przetłymaczone na zapytanie wykorzystuje motodę \verb|STRPOS|,
@@ -1256,7 +1236,7 @@
 
 	Wszystkie lokalizacje importują tą samą konfigurację, przedstawioną na listungu~\ref{lst:confProx}.
 	Ustawienia te przekazują podstawowe nagłówki zapytań, dzięki czemu dla serwisów połączenia wyglądają tak, jakby przyszły bezpośrednio od klienta.
-	\begin{lstlisting}[label=lst:mainProx, caption=Ustawienia proxy, float=h]
+	\begin{lstlisting}[label=lst:mainProx, caption=Ustawienia proxy SPA i API, float=h]
 		upstream spa {
 			server          spa:4200;
 		}
@@ -1279,7 +1259,7 @@
 		}
 	\end{lstlisting}
 
-	\begin{lstlisting}[label=lst:authProx, caption=Proxy auth, float=h]
+	\begin{lstlisting}[label=lst:authProx, caption=Ustawienia proxy Auth, float=h]
 		upstream auth {
 			server          authServer;
 		}

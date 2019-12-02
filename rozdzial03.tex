@@ -10,7 +10,7 @@
 	\begin{enumerate}
 		\item System zawiera katalog albumów
 		\item Albumy da się wyświetlać wraz ze szczegółami
-		\item Każdy album można oceniać oraz dodawać recenzję
+		\item Każdy album można oceniać oraz dodawać jego recenzję
 		\item Istnieje możliwość dodawania nowych albumów
 		\item Wyszukiwanie albumów korzysta z bazy zewnętrznego serwisu
 		\item Możliwość rejestracji i logowania
@@ -34,11 +34,11 @@
 	\begin{enumerate}
 		\item Dodanie oceny albumu\\
 			Przypadek użycia dotyczy akcji dodania oceny do albumu.
-			Dodawanie opisowej recenzji jest opcjonalne, dlatego ujęte zostało jako opcjonalny, rozszerzający przypadek użycia.
+			Dodawanie opisowej recenzji jest opcjonalne, dlatego ujęte zostało jako rozszerzający przypadek użycia.
 
 		\item Wyszukanie albumu z bazy Last.fm\\
 			Aby dodać ocenę do albumu należy wyszukać odpowiedni album wpisując jego nazwę lub wybrać z najpopularniejszych albumów podanego artysty.
-			Wyszukiwarka korzysta z API Last.fm, jednak nie wymaga konta na tym serwisie.
+			Wyszukiwarka korzysta z API Last.fm, jednak nie wymaga konta w tym serwisie.
 
 		\item Logowanie\\
 			Dodawanie ocen dostępne jest tylko dla zalogowanych użytkowników.
@@ -76,13 +76,13 @@
 		\item serwer uwierzytelniający użytkowników:\\
 			Strona internetowa działa po stronie klienta, przez co możliwa jest znaczna ingerencja w dane.
 			Aby minimalizować zagrożenia, zaimplementowane zostanie uwierzytelnianie użytkowników wykorzystujące bezpieczny protokół.
-			Wykorzystany standard powinien zapewnić zarówno uwierzytelnianie jak i autoryzację.
+			Wykorzystany standard powinien zapewnić zarówno uwierzytelnianie, jak i autoryzację.
 
 		\item serwer dostępowy do danych aplikacji:\\
 			Grafowy dostęp do bazy danych zaimplementowany zostanie za pomocą GraphQL\@.
-			Serwer umożliwiać będzie pobieranie danych stosując zapytania w języku GraphQL\@.
+			Serwer umożliwiać będzie pobieranie danych stosując zapytania w tym języku.
 			Dzięki temu relacje między danymi przedstawione są w postaci grafu,
-			co pozwala formować skompilowane zapytania bez potrzeby tworzenia dedykowanych kontrolerów i modeli DTO po stronie API\@.
+			co pozwala formować skomplikowane zapytania bez potrzeby tworzenia dedykowanych kontrolerów i modeli DTO po stronie API\@.
 
 		\item baza danych:\\
 			Baza danych powinna umożliwiać przechowywanie relacji między obiektami w taki sposób,
