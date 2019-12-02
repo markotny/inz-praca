@@ -176,7 +176,7 @@
 		Uwarunkowane jest to tym, że ustawienia aplikacji nie są przetrzymywane w bazie danych.
 		Możliwe jest to dzięki temu, że biblioteka apollo pozwala na definiowanie lokalnego schematu GraphQL, który rozszerza schemat wykorzystywanego API.
 		W ten sposób uzyskano zarządzanie stanem aplikacji bez wykorzystywania dodatkowych bilbiotek typu \emph{NgRx} czy \emph{Redux}.
-		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float]
+		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float=h]
 			const uri = 'api/graphql';
 
 			@NgModule({
@@ -466,7 +466,7 @@
 			];
 		\end{lstlisting}
 
-		\begin{lstlisting}[label=lst:appComponent, caption=Główny szablon HTML aplikacji, numbers=left, numberstyle=\tiny, stepnumber=2, float]
+		\begin{lstlisting}[label=lst:appComponent, caption=Główny szablon HTML aplikacji, numbers=left, numberstyle=\tiny, stepnumber=2, float=h]
 			<div [class]="'theme-wrapper mat-typography '+(settings$ | async)?.theme">
 
 				<app-header class="toolbar" (sidenavToggle)="mainSidenav.toggle()">
@@ -502,7 +502,7 @@
 		W projekcie stworzono serwis wykorzystujący wersję JSON, definiując interfejsy dla każdego zapytania.
 		Przykładowe zapytanie wykorzystujące metodę Api \verb|Artist.getTopAlbums| przedstawiono na listingu~\ref{lst:lastfmApi}.
 
-		\begin{lstlisting}[label=lst:lastfmApi, caption=Metoda wykorzystujaca Api Last.fm, float]
+		\begin{lstlisting}[label=lst:lastfmApi, caption=Metoda wykorzystujaca Api Last.fm, float=h]
 			private readonly baseAddress = 'https://ws.audioscrobbler.com/2.0/';
 			private apiParams = new HttpParams({
 				fromObject: {
@@ -535,7 +535,7 @@
 		a dla mniejszych przełącza menu boczne (Rys.~\ref{fig:xs}).
 		Znaczenie aliasów wykorzystywanych do definiowania rozmiarów zamieszczono w tabeli~\ref{tab:flexLayoutApi}.
 
-		\begin{lstlisting}[label=lst:flexLayout, caption=Menu nawigacji zależne od rozmiaru ekranu, float]
+		\begin{lstlisting}[label=lst:flexLayout, caption=Menu nawigacji zależne od rozmiaru ekranu, float=h]
 			<div fxHide.gt-xs>
 				<button mat-icon-button (click)="onToggleSidenav()">
 					<mat-icon>menu</mat-icon>
@@ -709,7 +709,7 @@
 			Z tego powodu podczas porównania nazwy artysty z zapytaniem na obu argumentach wykonywana jest funkcja \verb|ToLower()|,
 			zamiast użycia \verb|StringComparison.OrdinalIgnoreCase|.
 
-			\begin{lstlisting}[label=lst:queryClr, caption=Fragment klasy Query, float]
+			\begin{lstlisting}[label=lst:queryClr, caption=Fragment klasy Query, float=h]
 				private readonly IRepository _repository;
 		
 				public Query(IRepository repository)
@@ -753,7 +753,7 @@
 					.Type<NonNullType<AlbumType>>();
 			\end{lstlisting}
 
-			\begin{lstlisting}[label=lst:middleware, caption=Middleware zapisujące użytkowników, float]
+			\begin{lstlisting}[label=lst:middleware, caption=Middleware zapisujące użytkowników, float=h]
 				public class RecordUserMiddleware
 				{
 					private readonly FieldDelegate _next;
@@ -830,7 +830,7 @@
 			W tej klasie umieszczane są również inne transformacje zapytań wykonywane za każdym razem,
 			np.\ pomijanie wpisów, które oznaczone zostały jako nieaktywne (ang.\ \emph{soft delete}).
 
-			\begin{lstlisting}[label=lst:repository, caption=Implementacja repozytorium, float]
+			\begin{lstlisting}[label=lst:repository, caption=Implementacja repozytorium, float=h]
 				public class EfRepository : IRepository
 				{
 					private readonly AppDbContext _dbContext;
@@ -953,13 +953,13 @@
 			W pierwszej kolejności wczytywane są dane artysty oraz jego albumów (pierwsze dwa zapytania).
 			Następnie dla każdego z tych albumów ładowane są piosenki --- kolejnych 10 zapytań do bazy.
 			Jest to typowy problem ładowania danych, który powstaje podczas późnego ładowania powiązanych wpisów.
-			Jednym z możliwych rozwiązań jest wczesne ładowanie, czyli zadeklarowanie, które relacje mają zostać załadowane jeszcze przed wykonaniem zapytania do bazy.
+			Jednym z możliwych rozwiązań jest wczesne ładowanie (ang.\ \emph{eager loading}), czyli zadeklarowanie, które relacje mają zostać załadowane jeszcze przed wykonaniem zapytania do bazy.
 			Jednak w związku z tym, że klient korzystający z GraphQL może zarządać dowolną relację, nie ma możliwości statycznego zadeklarowania, które tablice mają zostać załadowane.
 			Potrzebne jest zatem dynamiczne rozwiązanie, które będzie interpretować zapytania i dołączać odpowiednie relacje bazy danych.
 			Można również zaimplementować \emph{data loader} --- narzędzie, które wysyła zapytania w partiach oraz wprowadza dodatkową warstwę cache.
 
 		\subsubsection*{Rejestracja zależności}
-			Rejestracja zależności odbywa się przy pomocy narzędzia \emph{Autofac}.
+			Rejestracja zależności odbywa się przy pomocy narzędzia \emph{Autofac} (Listing~\ref{lst:autofac}).
 			Metoda \verb|InitializeApi|, wywoływana na końcu metody \verb|ConfigureServices| klasy \verb|Startup| warstwy Api,
 			W pierwszej kolejności w kontenerze Autofac rejestrowane są wszystkie serwisy z projektów Core oraz Infrastructure.
 			Funkcja \verb|RegisterAssemblyTypes| skanuje całe assembly (skompilowany projekt) i wyszukuje serwisy utworzone zgodnie z przyjętymi konwencjami.
@@ -969,7 +969,7 @@
 				ContainerSetup.InitializeApi(Assembly.GetExecutingAssembly(), services);
 			\end{lstlisting}
 
-			\begin{lstlisting}[label=lst:autofac, caption=Rejestracja zależności wykorzystująca Autofac, float]
+			\begin{lstlisting}[label=lst:autofac, caption=Rejestracja zależności wykorzystująca Autofac, float=h]
 				public static IServiceProvider InitializeApi(
 					Assembly webAssembly, IServiceCollection services) =>
 					new AutofacServiceProvider(BaseAutofacInitialization(setupAction =>
@@ -998,8 +998,9 @@
 	Serwis również stworzony został na platformie Microsoftu.
 	Do zaimplementowania głównej funkcjonalności wykorzystano następujące biblioteki:
 	\begin{description}
-		\item[IdentityServer4] 
-		\item[AspNetCore.Identity] 
+		\item[IdentityServer4] biblioteka implementująca wszystkie protokoły związane z OpenID zgodnie ze specyfikacją (certyfikowana przez OpenID Foundation),
+			dzięki czemu serwer akceptuje połączenia od każdego standardowego klienta
+		\item[AspNetCore.Identity] system do zarządzania kontami użytkowników
 	\end{description}
 
 	Zarówno rejestracja jak i logowanie wykorzystują widoki dostarczone przez Identity.
@@ -1015,7 +1016,7 @@
 			\item[AllowedScopes] dozwolone zakresy informacji o użytkowniku, o które może poprosić klient
 			\item[RedirectUris] adresy, na które może przekierować aplikacja
 		\end{description}
-		\begin{lstlisting}[label=lst:openIdSrv, caption=Konfiguracja OpenId po stronie serwera, float]
+		\begin{lstlisting}[label=lst:openIdSrv, caption=Konfiguracja OpenId po stronie serwera, float=h]
 			ClientId = "angular_spa",
 			ClientName = "Angular SPA",
 			RequireConsent = false,
@@ -1033,7 +1034,7 @@
 			AccessTokenLifetime = 3600
 		\end{lstlisting}
 
-		\begin{lstlisting}[label=lst:openIdSpa, caption=Konfiguracja OpenId po stronie Spa, float]
+		\begin{lstlisting}[label=lst:openIdSpa, caption=Konfiguracja OpenId po stronie Spa, float=h]
 			authority: environment.authServerUri,
 			client_id: 'angular_spa',
 			response_type: 'code',
@@ -1052,7 +1053,7 @@
 		jak ukazano na listingu~\ref{lst:register}.
 		Następnie użytkownik zostaje przekierowany z powrotem na serwis SPA.
 
-		\begin{lstlisting}[label=lst:register, caption=Fragment kodu rejestacji, float]
+		\begin{lstlisting}[label=lst:register, caption=Fragment kodu rejestacji, float=h]
 			var user = new IdentityUser {UserName = Input.Email, Email = Input.Email};
 			var result = await _userManager.CreateAsync(user, Input.Password);
 			if (result.Succeeded)
@@ -1153,7 +1154,7 @@
 		Klasa ta wykorzystuje serwis \verb|OpenIdService| --- skonfigurowany klient HTTP, który łączy się z serwisem Auth (Listing~\ref{lst:openIdService}).
 		Dane pobierane są z adrestu \verb|/connect/userinfo| przesyłając token w nagłówku \verb|Authorization|.
 		Odpowiedź z serwera serializowana jest do zdefiniowanej klasy \verb|UserInfo|.
-		\begin{lstlisting}[label=lst:openIdService, caption=Serwis HTTP pobierający dane użytkownika, float]
+		\begin{lstlisting}[label=lst:openIdService, caption=Serwis HTTP pobierający dane użytkownika, float=h]
 			public class OpenIdService
 			{
 				public HttpClient Client { get; }
@@ -1235,4 +1236,78 @@
 
 \section{Odwrócone proxy}
 	Odwrócone proxy zaimplementowane zostało przy pomocy narzędzia \emph{nginx}.
+	Utworzono dwa pliki konfiguracyjne:
+	\begin{description}
+		\item[main.conf] przekierowanie na SPA oraz API
+		\item[authserver.conf] przekierowanie na Auth
+	\end{description}
+
+	Na listingu~\ref{lst:mainProx} przedstawiono konfigurację \verb|main.conf|.
+	Serwer nasłuchuje zapytań kierowanych pod adresem \verb|localhost:80|.
+	Jest to więc konfiguracja dla lokalnego środowiska.
+	Na serwerze zdefiniowano dwie lokacje:
+	domyślna lokalizacja \verb|/| kierująca połączenia na serwis \verb|spa|,
+	oraz lokalizacja \verb|/api/| kierująca zapytania do serwisu \verb|reserver|.
 	
+	Podobnie przedstawia się konfiguracja \verb|authserver.conf| (listing~\ref{lst:authProx}), która nasłuchuje na adresie \verb|auth.localhost:80|.
+	Zdefiniowana jest tylko jedna, główna lokalizacja kierująca połączenia do serwisu \verb|auth|.
+	Dodatkowo, skonfigurowana została obsługa zapytań przełączających protokół komunikacji na websocket.
+	Domyślnie nagłówki \verb|Upgrade| oraz \verb|Connection| nie są przekazywane przez proxy, dlatego musiały zostać ręcznie zmapowane.
+
+	Wszystkie lokalizacje importują tą samą konfigurację, przedstawioną na listungu~\ref{lst:confProx}.
+	Ustawienia te przekazują podstawowe nagłówki zapytań, dzięki czemu dla serwisów połączenia wyglądają tak, jakby przyszły bezpośrednio od klienta.
+	\begin{lstlisting}[label=lst:mainProx, caption=Ustawienia proxy, float=h]
+		upstream spa {
+			server          spa:4200;
+		}
+		upstream reserver {
+				server          reServer;
+		}
+		server {
+				listen          80;
+				server_name     localhost;
+		
+				location / {
+						proxy_pass  http://spa;
+						include     conf.d/common_location.conf;
+				}
+		
+				location /api/ {
+						proxy_pass  http://reserver/;
+						include     conf.d/common_location.conf;
+				}
+		}
+	\end{lstlisting}
+
+	\begin{lstlisting}[label=lst:authProx, caption=Proxy auth, float=h]
+		upstream auth {
+			server          authServer;
+		}
+
+		map $http_upgrade $connection_upgrade {
+				default upgrade;
+				''      close;
+		}
+
+		server {
+				listen          80;
+				server_name     auth.localhost;
+		
+				location / {
+						proxy_pass  http://auth;
+						include     conf.d/common_location.conf;
+						proxy_http_version  1.1;
+						proxy_set_header    Upgrade     $http_upgrade;
+						proxy_set_header    Connection  $connection_upgrade;
+				}
+		}
+	\end{lstlisting}
+
+	\begin{lstlisting}[label=lst:confProx, caption=Wspólna konfiguracja lokalizacji proxy, float=h]
+		proxy_set_header    X-Real-IP           $remote_addr;
+		proxy_set_header    X-Forwarded-For     $proxy_add_x_forwarded_for;
+		proxy_set_header    X-Forwarded-Proto   $scheme;
+		proxy_set_header    Host                $host;
+		proxy_set_header    X-Forwarded-Host    $server_name;
+		proxy_set_header    X-Forwarded-Port    $server_port;
+	\end{lstlisting}
