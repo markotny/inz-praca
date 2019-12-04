@@ -44,7 +44,7 @@
 			\item[ENABLE\_POLLING] wykorzystywana w Dockerfile, określa czy kontener zostanie przebudowany po każdych zmianach w plikach źródłowych
 			\item[ASPNETCORE\_ENVIRONMENT] wykorzystywana jest wewnątrz programu do określenia odpowiednich konfiguracji
 			\item[ASPNETCORE\_URLS] adresy wykorzystywane przez serwer, adres HTTPS (443) nie jest wymieniony, ponieważ szyfrowaniem zajmuje się kontener z odwróconym proxy
-			\item[ConnectionStrings\_\_DefaultConnection] ustawienia połączenia do bazy, wykorzystywany jest wewnętrzny adres kontenera \verb|mainDB|
+			\item[ConnectionStrings\_\_DefaultConnection] ustawienia połączenia do bazy, jako adres wykorzystywany jest wewnętrzna nazwa kontenera \verb|mainDB|
 		\end{description}
 		Kontener posiada osobne pliki Dockerfile dla każdego środowiska, ponieważ w środowisku developerskim zaimplementowano obserwowanie plików źródłowych.
 		Dzięki temu, każda zmiana w kodzie skutkuje natychmiastowym przebudowaniem kontenera, co znacznie przyspiesza pracę.
@@ -110,7 +110,7 @@
 			ENTRYPOINT dotnet ${ENABLE_POLLING:+watch} run --urls=http://+:80		
 		\end{lstlisting}
 		
-		W pierwszym kroku za pomocą \verb|WORKDIR| ustawiany jest folder, względem którego wykonywane będą wszystkie komendy.
+		W pierwszym kroku za pomocą komendy \verb|WORKDIR| ustawiany jest folder, względem którego wykonywane będą wszystkie polecenia.
 		Następnie instalowany jest debugger .NET Core, który umożliwia debugowanie z Visual Studio na systemie hosta (Windows).
 		Zmienna \verb|DOTNET_USE_POLLING_FILE_WATCHER| ustawiana jest na podstawie zmiennej \verb|ENABLE_POLLING| skonfigurowanej w docker-compose.
 		Po zmianie katalogu roboczego na \verb|/app| ustawiana jest komenda uruchamiana po starcie kontenera.
@@ -177,23 +177,17 @@
 		Możliwe jest to dzięki temu, że biblioteka apollo pozwala na definiowanie lokalnego schematu GraphQL, który rozszerza schemat wykorzystywanego API.
 		W ten sposób uzyskano zarządzanie stanem aplikacji bez wykorzystywania dodatkowych bilbiotek typu \emph{NgRx} czy \emph{Redux}.
 		\begin{lstlisting}[label=lst:apolloSettings, caption=Globalne ustawienia modułu Apollo, float=h]
-							const auth = setContext((_operation, _context) => ({
-								headers: {
-									Authorization: authService.authorizationHeaderValue
-								}
-							}));
-							const cache = new InMemoryCache();			
-							const defaultSettings = {
-								__typename: 'Settings',
-								theme: 'dark-theme'
-							} as Settings;
-							cache.writeData({data: {settings: defaultSettings}});			
-							return {
-								link: ApolloLink.from([auth, httpLink.create({uri})]),
-								cache,
-								resolvers,
-								typeDefs: {}
-							};
+			const auth = setContext((_operation, _context) => ({
+				headers: {
+					Authorization: authService.authorizationHeaderValue
+				}
+			}));
+			const cache = new InMemoryCache();			
+			const defaultSettings = {
+				__typename: 'Settings',
+				theme: 'dark-theme'
+			} as Settings;
+			cache.writeData({data: {settings: defaultSettings}});
 		\end{lstlisting}
 
 		\subsubsection*{Wywoływanie zapytań}
@@ -212,14 +206,6 @@
 			\end{lstlisting}
 			wygeneruje następujący serwis:
 			\begin{lstlisting}
-				export const AddRatingDocument = gql`
-					mutation addRating($rating: RatingInput!) {
-						addRating(rating: $rating) {
-							id
-						}
-					}
-				`;
-				
 				@Injectable({
 					providedIn: 'root'
 				})
@@ -230,19 +216,13 @@
 			\end{lstlisting}
 
 			Klasa oznaczona jest angularowym dekoratorem \verb|@Injectable|, dzięki czemu dostępna jest jako serwis w całej aplikacji.
+			Zmienna \verb|document| przechowuje oryginalne zapytanie w języku GraphQL jako string.
 			Uzyskano w ten sposób szybki i elastyczny proces korzystania z Api jednocześnie zachowując pełną walidację typów.
 			Serwis wystarczy zaimportować w komponencie i wywołać metodę \verb|mutate| zwracającą typ \verb|Observable|:
 			\begin{lstlisting}
-				constructor(
-					private addRating: AddRatingGQL
-				) {}
-
-				rating: RatingInput;
-
 				onSubmit() {
-					this.addRating.mutate({rating: this.rating})
+					this.addRatingGQL.mutate({rating: this.rating})
 						.subscribe({
-							error: err => console.log('mutation failed', err),
 							complete: () => this.router.navigate(['/home'])
 						});
 				}
@@ -271,11 +251,6 @@
 			\begin{lstlisting}
 				album$: Observable<GetAlbumFullQuery['album']>;
 
-				constructor(
-					private route: ActivatedRoute,
-					private getAlbum: GetAlbumFullGQL
-				) {}
-
 				ngOnInit() {
 					this.album$ = this.route.paramMap.pipe(
 						switchMap((params: ParamMap) =>
@@ -298,19 +273,12 @@
 				extend type Query {
 					settings: Settings
 				}
-				
 				extend type Mutation {
 					updateSettings(input: SettingsInput): Settings
 				}
-				
 				type Settings {
 					theme: String!
 				}
-				
-				input SettingsInput {
-					theme: String
-				}
-				
 			\end{lstlisting}
 			
 			Wczytywanie danych zdefiniowanych w lokalnym schemacie odbywa się tak samo jak przy zewnętrznym Api z jedną różnicą:
@@ -451,16 +419,13 @@
 
 		\begin{lstlisting}[label=lst:appComponent, caption=Główny szablon HTML aplikacji, numbers=left, numberstyle=\tiny, stepnumber=2, float=h]
 			<div [class]="'theme-wrapper mat-typography '+(settings$ | async)?.theme">
-
 				<app-header class="toolbar" (sidenavToggle)="mainSidenav.toggle()">
 				</app-header>
-			
 				<mat-sidenav-container fxFlex fxFlex.xs="noshrink">
 					<mat-sidenav #mainSidenav role="navigation" mode="over"
 						fixedInViewport="true" fixedTopGap="56">
 						<app-sidenav (sidenavClose)="mainSidenav.close()"></app-sidenav>
-					</mat-sidenav>
-			
+					</mat-sidenav>			
 					<mat-sidenav-content>
 						<main role="main" class="wrapper" fxLayout="column">
 			
@@ -591,12 +556,10 @@
 				@include album-grid-component-theme($theme);
 				@include album-search-component-theme($theme);
 			}
-			
 			.light-theme {
 				@include angular-material-theme($light-theme);
 				@include custom-components-theme($light-theme);
 			}
-			
 			.dark-theme {
 				@include angular-material-theme($dark-theme);
 				@include custom-components-theme($dark-theme);
@@ -620,10 +583,7 @@
 							&:hover {
 								background-color: mat-color($accent, darker);
 							}
-						}
-					}
-				}
-			}			
+			}}}}
 		\end{lstlisting}
 
 		Przełączanie pomiędzy globalnymi stylami odbywa się w głównym komponencie aplikacji \verb|app.component|,
@@ -690,13 +650,6 @@
 			zamiast użycia \verb|StringComparison.OrdinalIgnoreCase|.
 
 			\begin{lstlisting}[label=lst:queryClr, caption=Fragment klasy Query, float=h]
-				private readonly IRepository _repository;
-		
-				public Query(IRepository repository)
-				{
-					_repository = repository;
-				}
-
 				public Album? GetAlbum(Guid id) => _repository.GetById<Album>(id);
 
 				public IEnumerable<Artist> SearchArtists(string? mbid, string name)
@@ -897,10 +850,7 @@
 							songs {
 								id
 								title
-							}
-						}
-					}
-				}
+				}}}}
 			\end{lstlisting}
 			wykonywane są następujące komendy SQL:
 			\begin{lstlisting}
@@ -987,7 +937,7 @@
 	Podczas wykonywania tych akcji użytkownik zostaje przekierowany na serwer Auth przy pomocy odwróconego proxy.
 
 	\subsection{Konfiguracja}
-		Na serwerze zarejestrowany został jeden klient, \verb|angular_spa|, z którego korzystać będą użytkownicy.
+		Na serwerze (Listing~\ref{lst:openIdSrv}) zarejestrowany został jeden klient, \verb|angular_spa|, z którego korzystać będą użytkownicy.
 		Poniżej opisane zostały najważniejsze opcje:
 		\begin{description}
 			\item[ClientId] Id klienta musi być takie same zarówno po stronie serwera jak i klienta
@@ -1013,6 +963,12 @@
 			AllowAccessTokensViaBrowser = true,
 			AccessTokenLifetime = 3600
 		\end{lstlisting}
+		Ustawienia po stronie tego klienta przedstawione zostały na listingu~\ref{lst:openIdSpa}:
+		\begin{description}
+			\item[authority] to adres serwera wystawiającego token
+			\item[response\_type] sposób uwierzytelniania: \verb|code| to tryb wykorzystujący kod autoryzacji
+			\item[scope] podzbiór \verb|AllowedScopes| z konfiguracji serwera
+		\end{description}
 
 		\begin{lstlisting}[label=lst:openIdSpa, caption=Konfiguracja OpenId po stronie Spa, float=h]
 			authority: environment.authServerUri,
@@ -1027,6 +983,7 @@
 			silent_redirect_uri: `${environment.thisUri}/silent-refresh`
 		\end{lstlisting}
 
+	\newpage
 	\subsection{Rejestracja}
 		Podczas rejestracji użytkownik podaje login i hasło.
 		Na podstawie tych danych tworzony jest nowe konto i zapisywane jest w bazie danych przez pomocniczy obiekt klasy \verb|UserManager|,
@@ -1134,17 +1091,15 @@
 		Klasa ta wykorzystuje serwis \verb|OpenIdService| --- skonfigurowany klient HTTP, który łączy się z serwisem Auth (Listing~\ref{lst:openIdService}).
 		Dane pobierane są z adrestu \verb|/connect/userinfo| przesyłając token w nagłówku \verb|Authorization|.
 		Odpowiedź z serwera serializowana jest do zdefiniowanej klasy \verb|UserInfo|.
-		\begin{lstlisting}[label=lst:openIdService, caption=Serwis HTTP pobierający dane użytkownika, float=h]
+		\begin{lstlisting}[label=lst:openIdService, caption=Serwis HTTP pobierający dane użytkownika, float]
 			public class OpenIdService
 			{
-				public HttpClient Client { get; }
-		
+				public HttpClient Client { get; }		
 				public OpenIdService(HttpClient client)
 				{
 					client.BaseAddress = new Uri("http://authServer/connect/");
 					Client = client;
 				}
-		
 				public async Task<UserInfo> GetUserInfo(string accessToken)
 				{
 					Client.DefaultRequestHeaders.Authorization
