@@ -1,81 +1,153 @@
-\chapter{Prezentacja aplikacji}
-	W projekcie zaimplementowane zostały podstawowe widoki wykorzystujące stworzoną architekturę.
-	Zrzuty ekranu wykonane zostały w narzędziach developerskich przeglądarki Chrome, symulując ekran telefonu Iphone~7.
+\chapter{Testy aplikacji}
+\section{Testy jednostkowe}
+	Przeprowadzone testy jednostkowe sprawdzały poprawność logiki programu.
+	Testowaną warstwą jest więc warstwa \emph{Core}.
+	Podczas testów wykorzystano bibliotekę \emph{xunit}.
+	Listing~\ref{lst:unitTest} przedstawia test sprawdzający poprawność dodawania oceny albumu.
+	Po dodaniu oceny aktualizowana jest średnia ocena.
+	Test przeprowadzono dla wartości zwracającej liczbę zmiennoprzecinkową, aby upewnić się że dzielenie wykonywane jest prawidłowo.
+	Jako wartość początkową ustawiono album z dwoma ocenami dającymi średnią równą 2.
+	Następnie dodano ocenę o wartości 4 i sprawdzono, czy nowa średnia jest równa 8/3.
 
-\section{Widoki albumów}
-	Po kliknięciu w przycisk menu ,,Explore'' (widok menu ukazany został na rysunkach~\ref{fig:xs} oraz~\ref{fig:gt-xs}) wyświetlana jest lista albumów.
-	Aby wyświetlić widok ze szczegółami (Rys.~\ref{fig:album}) należy nacisnąć kafelek z albumem.
-	\begin{figure}[H]
-		\centering
-		\begin{minipage}{.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/explore.png}
-			\caption{Widok wyświetlający listę albumów}
-		\end{minipage}%
-		\begin{minipage}{0.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/album.png}
-			\caption{Widok przedstawiający szczegóły albumu}
-			\label{fig:album}
-		\end{minipage}
-	\end{figure}
+	\begin{lstlisting}[label=lst:unitTest, caption=Test jednostkowy dodawania oceny albumu, float=h]
+		[Fact]
+		public void AddSubsequentRating()
+		{
+			var ratings = new List<Rating>
+			{
+				new RatingBuilder().WithDefaultValues()
+				.Stars(1).Build(),
+				new RatingBuilder().WithDefaultValues()
+				.Stars(3).Build()
+			};
+
+			var album = new AlbumBuilder().WithDefaultValues()
+				.Ratings(ratings).Build();
+
+			var newRating = new RatingBuilder().WithDefaultValues()
+				.Stars(4).Build();
+
+			album.AddRating(newRating);
+
+			var expected = (float)(8.0 / 3);
+			Assert.Equal(expected, album.AverageRating);
+		}
+	\end{lstlisting}
+
+\section{Testy integracyjne}
+	Testy integracyjne sprawdzają zgodność komunikacji pomiędzy komponentami.
+	Przeprowadzone zostały testy wykorzystujące wszystkie trzy warstwy serwisu API.
+	Aby było to możliwe, zaimplementowano serwer testowy przy pomocy biblioteki \emph{AspNetCore.Mvc.Testing} (Listing~\ref{lst:testServer}).
+	Klasa \verb|WebApplicationFactory| pozwala na stworzenie serwera, który obsługuje zapytania HTTP,
+	bezpośrednio w pamięci podczas wykonywania testów.
+	W serwerze skonfigurowano jedynie podstawowe wymagane serwisy:
+	\begin{itemize}
+		\item GraphQL wykorzystujące te same typy, co serwis API,
+		\item AppDbContext łączące się do bazy w pamięci
+		\item IRepository i jego implementację z warstwy \emph{Infrastructure}
+	\end{itemize}
+	Na sam koniec wywołano funkcję \verb|SeedData.PopulateTestData|, dodającą dane testowe do bazy.
+
+	Na listingu~\ref{lst:integrationTest} przedstawiono test wykorzystujący tą klasę.
+	Sprawdzane jest, czy oprócz wczytywania i formatowania danych z bazy, poprawnie odbywa się ładowanie pokrewnych wpisów (\verb|albumArtist|).
+	Na początku definiowane jest zapytanie w języku GraphQL, które
+	zwraca tytuł albumu oraz nazwę wykonwacy.
+	Dane te są porównywane ze znanymi, domyśnymi danymi w bazie.
+
+
+	\begin{lstlisting}[label=lst:testServer, caption=Serwer do testów, float=h]
+		public class WebAppTestFactory<TStartup> : WebApplicationFactory<Startup>
+		{
+			protected override void ConfigureWebHost(IWebHostBuilder builder)
+			{
+				builder
+					.Configure(app => app.UseGraphQL("/"))
+					.ConfigureServices(services =>
+				{
+					var serviceProvider = new ServiceCollection()
+						.AddEntityFrameworkInMemoryDatabase()
+						.AddEntityFrameworkProxies()
+						.BuildServiceProvider();
 	
-\section{Dodawanie oceny}
-	Dodawanie oceny odbywa się w dwóch krokach.
-	Najpierw użytkownik wyszukuje album wg nazwy albumu, lub wpisuje nazwę artysty.
-	W drugim przypadku zwracane są najpopularniejsze albumy danego artysty.
-	Następnie, po kliknięciu w wybrany album użytkownik ma możliwość dodania oceny w skali 1-5 oraz opcjonalnie recenzji tekstowej (Rys.~\ref{fig:rate}).
-	\begin{figure}[H]
+					services.AddDbContext<AppDbContext>(options =>
+					{
+						options.UseInMemoryDatabase("TestDB");
+						options.UseLazyLoadingProxies();
+						options.UseInternalServiceProvider(serviceProvider);
+					});
+					services.AddScoped<IRepository, EfRepository>();
+	
+					services.AddGraphQL(sp => SchemaBuilder.New()
+						.AddServices(sp)
+						.AddQueryType<QueryType>()
+						.AddMutationType<MutationType>()
+						.BindClrType<Guid, IdType>()
+						.Create());
+	
+					var sp = services.BuildServiceProvider();
+	
+					using (var scope = sp.CreateScope())
+					{
+						var scopedServices = scope.ServiceProvider;
+						var db = scopedServices.GetRequiredService<AppDbContext>();
+	
+						db.Database.EnsureCreated();
+						SeedData.PopulateTestData(db);
+					}
+				});
+			}
+		}
+	\end{lstlisting}
+
+	\begin{lstlisting}[label=lst:integrationTest, caption=Test integracyjny zapytania GraphQL, float]
+		public class GraphQLTests : IClassFixture<WebAppTestFactory<Startup>>
+		{
+			private readonly HttpClient _client;
+
+			public GraphQLTests(WebAppTestFactory<Startup> factory)
+			{
+				_client = factory.CreateClient();
+			}
+
+			[Fact]
+			public async Task ReturnsAlbumWithArtist()
+			{
+				var request = new JObject();
+				request.Add("query",
+					"query getAlbum{ album(id: \"b0000000000000000000000000000001\")" +
+					"{ title albumArtist {name}}}");
+
+				var response = await _client.PostAsync("/", new StringContent(
+					request.ToString(), Encoding.UTF8, "application/json"));
+
+				response.EnsureSuccessStatusCode();
+
+				var responseString = await response.Content.ReadAsStringAsync();
+				dynamic actual = JObject.Parse(responseString);
+
+				Assert.Equal("Album 1", Convert.ToString(actual.data.album.title));
+				Assert.Equal("Artist 1",
+					Convert.ToString(actual.data.album.albumArtist.name));
+			}
+		}
+	\end{lstlisting}
+
+\section{Testy akceptacyjne}
+	Przeprowadzone zostały testy akceptacyjne sprawdzające poprawność działania aplikacji.
+	Aby przetestować API wykorzystano narzędzie \emph{Playground} przedstawione na zrzucie ekranu~\ref{fig:playground}.
+	Pozwala ono na pisanie zapytań w języku GraphQL i wywoływać je na serwerze API.
+	Dodatkowo, wczytuje schemat API dzięki czemu oferuje podpowiedzi podczas pisania zapytań.
+	\begin{figure}[ht]
 		\centering
-		\begin{minipage}{.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/search.png}
-			\caption{Ekran wyszukiwania albumu}
-		\end{minipage}%
-		\begin{minipage}{0.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/rate.png}
-			\caption{Ekrany dodawania oceny}
-			\label{fig:rate}
-		\end{minipage}
+			\includegraphics[width=\linewidth]{rys06/playground.png}
+		 \caption{Narzędzie do testowania API GraphQL}
+		 \label{fig:playground}
 	\end{figure}
 
-\newpage
-\section{Rejestracja i logowanie}
-	Zarówno rejestracja, jak i logowanie odbywa się po stronie serwisu Auth.
-	Z tego powodu widoki te odstają stylistycznie od reszty aplikacji.
-	\begin{figure}[H]
-		\centering
-		\begin{minipage}{.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/register.png}
-			\caption{Ekran rejestracji}
-		\end{minipage}%
-		\begin{minipage}{0.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/login.png}
-			\caption{Ekran logowania}
-		\end{minipage}
-		\label{fig:login}
-	\end{figure}
-	
-\newpage
-\section{Jasny motyw}
-	Wszystkie widoki dostępne są również w jasnym motywie.
-	Rysunek~\ref{fig:search_light} przedstawia wyszukiwanie po nazwie albumu,
-	natomiast na rysunku~\ref{fig:album_light} przedstawiono widok~\ref{fig:album} w jasnym motywie.
-	\begin{figure}[H]
-		\centering
-		\begin{minipage}{.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/search_light.png}
-			\caption{Ekrany wyszukiwania albumu}
-			\label{fig:search_light}
-		\end{minipage}%
-		\begin{minipage}{0.5\textwidth}
-			\centering
-			\includegraphics[width=0.75\linewidth]{rys06/album_light.png}
-			\caption{Widok przedstawiający szczegóły albumu}
-			\label{fig:album_light}
-		\end{minipage}
-	\end{figure}
+	Przeprowadzono również testy akceptacyjne procesu rejestracji i logowania użytkownika.
+	Podczas tych testów upewniono się, że w konsoli przeglądarki nie można podejrzeć danych pozwalających na oszukanie systemu.
+	Komunikacja była poprawnie zabezpieczona i zgodna z protokołem OpenID Connect z kodem autoryzacji i PKCE.
+
+	W głównym interfejsie sprawdzono poprawność dodawania ocen i recenzji albumów.
+	Albumy są poprawnie zwracane z API Last.fm, zarówno wyszukując po nazwie albumu, jak i po artyście.
+	Po wybraniu albumu można poprawnie dodać do niego ocenę, a album zostanie wyświetlony na głównej liście.

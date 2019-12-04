@@ -1,0 +1,43 @@
+\chapter{Podsumowanie}
+\section{Wykonane prace}
+	Stworzone zostało kompletne rozwiązanie pozwalające na sprawną rozbudowę zaawansowanej aplikacji.
+	Zastosowano najnowsze rozwiązania z dziedziny projektowania stron internetowych,
+	co pozwoliło na stworzenie uniwersalnej strony działającej zarówno na komputerach, jak i telefonach komórkowych.
+	Jednocześnie dzięki zapytaniom wykorzystującym protokół GraphQL oraz zaawansowanemu systemowi cache, zużycie danych przesyłanych przez internet jest ograniczone do minimum.
+	Dzięki temu GraphQL jest obecnie postrzegane jako przyszłość projektowania API dla stron internetowych typu SPA.
+
+	Zaimplementowano jeden z najbezpieczniejszych na chwilę obecną systemów uwierzytelniania i autoryzacji, OpenID Connect.
+	Wykorzystany tryb uwierzytelniania z użyciem kodu autoryzacji i PKCE zapewnia największą ochronę użytkownika korzystającego ze strony w przeglądarce internetowej.
+	Podczas tworzenia widoków utrzymano konwencję \emph{Material design}, uzyskując nowoczesny wygląd zgodny ze standardem na urządzeniach z systemem Android.
+	Całość aplikacji stworzona została na platformie Docker, dzięki czemu może zostać bezproblemowo uruchomiona na każdej maszynie. 
+	
+	Zgodnie z założeniami, w projekcie wykorzystano tylko rozwiązania open source.
+	Kod stworzonej aplikacji również udostępniony jest publicznie na platformie GitHub.
+	Wykorzystanie systemu kontroli wersji Git umożliwia łatwe rozbudowanie aplikacji oraz ułatwia współpracę,
+	jeśli osoby trzecie chciałyby rozpocząć współpracę przy rozwijaniu programu.
+	
+\section{Wnioski}
+	GraphQL pozwala na budowanie zaawansowanego API przy utrzymaniu zrozumiałej i czytelnej architektury API (brak powielanych endpoint-ów).
+	Rozwiązuje dwa typowe problemy API: \emph{underfetching} oraz \emph{overfetching}, czyli odpowiednio pobieranie za mało lub za dużo danych z API.
+	Wymaga jednak implementacji skomplikowanego cache i uniemożliwia stworzenie cache na poziomie sieci.
+	Należy również pamiętać, że jest to jedynie protokół przesyłania danych i formatowania zapytań.
+	Nie rozwiązuje problemów optymalizacyjnych występujących w API typu RESTful (np.\ problem N+1).
+	W dalszym ciągu potrzebna jest dodatkowa logika, która optymalizować będzie zapytania do bazy.
+
+	Serwisy stworzone w .NET Core sprawdzają się bardzo dobrze pod kątem bezpieczeństwa oraz stabilności.
+	Stworzone przez Microsoft biblioteki pomocnicze pozwalają na stworzenie zaawansowanej funkcjonalności
+	z zachowaniem pewności co do jakości kodu.
+
+	
+\section{Możliwości dalszej rozbudowy}
+	Całość projektu stanowi zaawansowany szkielet, na podstawie którego można stworzyć rozbudowaną aplikację.
+
+	Serwis API powinien zostać zoptymalizowany pod kątem zapytań do bazy.
+	Dodatkowo, jeśli przewiduje się dużo danych, po stronie API należy zaimplementować mechanizm paginacji i sortowania.
+	Zarówno Hot Chocolate, jak i Entity Framework Core wspierają operacje tego typu.
+
+	Zastosowany framework Angular oferuje wsparcie dla PWA (ang.\ \emph{Progressive Web Application}) poprzez dodanie service worker-ów.
+	Są to pomocnicze skrypty działające w tle, dzięki którym strona może działać bez połączenia z internetem.
+	Aplikacja została zbudowana wykorzystując wiele procesów automatyzacji, dzięki czemu możliwe jest bardzo szybkie rozwijanie API o dodatkowe modele bazy i typy GraphQL.
+	Użycie Entity Framework Core pozwala na proste modyfikacje nawet na istniejącej bazie poprzez zarządzanie migracjami.
+

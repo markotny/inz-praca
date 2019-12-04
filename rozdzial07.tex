@@ -1,43 +1,81 @@
-\chapter{Podsumowanie}
-\section{Wykonane prace}
-	Stworzone zostało kompletne rozwiązanie pozwalające na sprawną rozbudowę zaawansowanej aplikacji.
-	Zastosowano najnowsze rozwiązania z dziedziny projektowania stron internetowych,
-	co pozwoliło na stworzenie uniwersalnej strony działającej zarówno na komputerach, jak i telefonach komórkowych.
-	Jednocześnie dzięki zapytaniom wykorzystującym protokół GraphQL oraz zaawansowanemu systemowi cache, zużycie danych przesyłanych przez internet jest ograniczone do minimum.
-	Dzięki temu GraphQL jest obecnie postrzegane jako przyszłość projektowania API dla stron internetowych typu SPA.
+\chapter{Prezentacja aplikacji}
+	W projekcie zaimplementowane zostały podstawowe widoki wykorzystujące stworzoną architekturę.
+	Zrzuty ekranu wykonane zostały w narzędziach developerskich przeglądarki Chrome, symulując ekran telefonu Iphone~7.
 
-	Zaimplementowano jeden z najbezpieczniejszych na chwilę obecną systemów uwierzytelniania i autoryzacji, OpenID Connect.
-	Wykorzystany tryb uwierzytelniania z użyciem kodu autoryzacji i PKCE zapewnia największą ochronę użytkownika korzystającego ze strony w przeglądarce internetowej.
-	Podczas tworzenia widoków utrzymano konwencję \emph{Material design}, uzyskując nowoczesny wygląd zgodny ze standardem na urządzeniach z systemem Android.
-	Całość aplikacji stworzona została na platformie Docker, dzięki czemu może zostać bezproblemowo uruchomiona na każdej maszynie. 
+\section{Widoki albumów}
+	Po kliknięciu w przycisk menu ,,Explore'' (widok menu ukazany został na rysunkach~\ref{fig:xs} oraz~\ref{fig:gt-xs}) wyświetlana jest lista albumów.
+	Aby wyświetlić widok ze szczegółami (Rys.~\ref{fig:album}) należy nacisnąć kafelek z albumem.
+	\begin{figure}[H]
+		\centering
+		\begin{minipage}{.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/explore.png}
+			\caption{Widok wyświetlający listę albumów}
+		\end{minipage}%
+		\begin{minipage}{0.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/album.png}
+			\caption{Widok przedstawiający szczegóły albumu}
+			\label{fig:album}
+		\end{minipage}
+	\end{figure}
 	
-	Zgodnie z założeniami, w projekcie wykorzystano tylko rozwiązania open source.
-	Kod stworzonej aplikacji również udostępniony jest publicznie na platformie GitHub.
-	Wykorzystanie systemu kontroli wersji Git umożliwia łatwe rozbudowanie aplikacji oraz ułatwia współpracę,
-	jeśli osoby trzecie chciałyby rozpocząć współpracę przy rozwijaniu programu.
+\section{Dodawanie oceny}
+	Dodawanie oceny odbywa się w dwóch krokach.
+	Najpierw użytkownik wyszukuje album wg nazwy albumu, lub wpisuje nazwę artysty.
+	W drugim przypadku zwracane są najpopularniejsze albumy danego artysty.
+	Następnie, po kliknięciu w wybrany album użytkownik ma możliwość dodania oceny w skali 1-5 oraz opcjonalnie recenzji tekstowej (Rys.~\ref{fig:rate}).
+	\begin{figure}[H]
+		\centering
+		\begin{minipage}{.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/search.png}
+			\caption{Ekran wyszukiwania albumu}
+		\end{minipage}%
+		\begin{minipage}{0.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/rate.png}
+			\caption{Ekrany dodawania oceny}
+			\label{fig:rate}
+		\end{minipage}
+	\end{figure}
+
+\newpage
+\section{Rejestracja i logowanie}
+	Zarówno rejestracja, jak i logowanie odbywa się po stronie serwisu Auth.
+	Z tego powodu widoki te odstają stylistycznie od reszty aplikacji.
+	\begin{figure}[H]
+		\centering
+		\begin{minipage}{.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/register.png}
+			\caption{Ekran rejestracji}
+		\end{minipage}%
+		\begin{minipage}{0.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/login.png}
+			\caption{Ekran logowania}
+		\end{minipage}
+		\label{fig:login}
+	\end{figure}
 	
-\section{Wnioski}
-	GraphQL pozwala na budowanie zaawansowanego API przy utrzymaniu zrozumiałej i czytelnej architektury API (brak powielanych endpoint-ów).
-	Rozwiązuje dwa typowe problemy API: \emph{underfetching} oraz \emph{overfetching}, czyli odpowiednio pobieranie za mało lub za dużo danych z API.
-	Wymaga jednak implementacji skomplikowanego cache i uniemożliwia stworzenie cache na poziomie sieci.
-	Należy również pamiętać, że jest to jedynie protokół przesyłania danych i formatowania zapytań.
-	Nie rozwiązuje problemów optymalizacyjnych występujących w API typu RESTful (np.\ problem N+1).
-	W dalszym ciągu potrzebna jest dodatkowa logika, która optymalizować będzie zapytania do bazy.
-
-	Serwisy stworzone w .NET Core sprawdzają się bardzo dobrze pod kątem bezpieczeństwa oraz stabilności.
-	Stworzone przez Microsoft biblioteki pomocnicze pozwalają na stworzenie zaawansowanej funkcjonalności
-	z zachowaniem pewności co do jakości kodu.
-
-	
-\section{Możliwości dalszej rozbudowy}
-	Całość projektu stanowi zaawansowany szkielet, na podstawie którego można stworzyć rozbudowaną aplikację.
-
-	Serwis API powinien zostać zoptymalizowany pod kątem zapytań do bazy.
-	Dodatkowo, jeśli przewiduje się dużo danych, po stronie API należy zaimplementować mechanizm paginacji i sortowania.
-	Zarówno Hot Chocolate, jak i Entity Framework Core wspierają operacje tego typu.
-
-	Zastosowany framework Angular oferuje wsparcie dla PWA (ang.\ \emph{Progressive Web Application}) poprzez dodanie service worker-ów.
-	Są to pomocnicze skrypty działające w tle, dzięki którym strona może działać bez połączenia z internetem.
-	Aplikacja została zbudowana wykorzystując wiele procesów automatyzacji, dzięki czemu możliwe jest bardzo szybkie rozwijanie API o dodatkowe modele bazy i typy GraphQL.
-	Użycie Entity Framework Core pozwala na proste modyfikacje nawet na istniejącej bazie poprzez zarządzanie migracjami.
-
+\newpage
+\section{Jasny motyw}
+	Wszystkie widoki dostępne są również w jasnym motywie.
+	Rysunek~\ref{fig:search_light} przedstawia wyszukiwanie po nazwie albumu,
+	natomiast na rysunku~\ref{fig:album_light} przedstawiono widok~\ref{fig:album} w jasnym motywie.
+	\begin{figure}[H]
+		\centering
+		\begin{minipage}{.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/search_light.png}
+			\caption{Ekrany wyszukiwania albumu}
+			\label{fig:search_light}
+		\end{minipage}%
+		\begin{minipage}{0.5\textwidth}
+			\centering
+			\includegraphics[width=0.75\linewidth]{rys07/album_light.png}
+			\caption{Widok przedstawiający szczegóły albumu}
+			\label{fig:album_light}
+		\end{minipage}
+	\end{figure}
